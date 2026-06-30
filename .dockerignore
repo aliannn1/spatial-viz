@@ -1,0 +1,33 @@
+.git/
+.vscode/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Runtime datasets are mounted into /data and must not be baked into the image.
+data/*
+!data/README.md
+
+# Large generated files.
+*.bin
+*.expr.bin
+*.h5ad
+*.loom
+*.fastq
+*.fq
+*.bam
+*.sam
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Logs and temporary files.
+*.log
+*.pid
+*.tmp
+*.bak
+*.bak_*
+server_*.log
+server_*.pid
