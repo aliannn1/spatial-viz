@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "datasets": [
+    {
+      "id": "lamprey_3d_spatiotemporal",
+      "title": "Far Eastern brook lamprey",
+      "description": "Adult Far Eastern brook lamprey (Lethenteron reissneri) whole-brain spatial transcriptomics dataset, sourced from DOI: 10.1126/science.aea2535. Supports spatial 3D/2D, UMAP, gene expression.",
+      "icon": "🧬",
+      "viewer_data": "lamprey_3d_spatiotemporal",
+      "href": "./viewer.html?data=lamprey_3d_spatiotemporal",
+      "cells": 456826,
+      "genes": 17897,
+      "slices": 40,
+      "chunks": 3,
+      "color_fields": [
+        "region",
+        "cluster",
+        "level1",
+        "level0",
+        "level-1",
+        "new_cluster",
+        "anno_whole_cluster"
+      ],
+      "tags": [
+        "456,826 cells",
+        "17,897 genes",
+        "40 slices",
+        "region / cluster / level1 / level0 / level-1 / new_cluster / anno_whole_cluster"
+      ]
+    },
+    {
+      "id": "marmoset_sagittal_brain",
+      "title": "Marmoset Sagittal Brain Cellbin",
+      "description": "Adult common marmoset (Callithrix jacchus) sagittal brain single-cell spatial transcriptomics dataset, sourced from DOI: 10.1126/science.aea2673. Supports spatial 3D/2D, UMAP, gene expression.",
+      "icon": "🧠",
+      "viewer_data": "marmoset_sagittal_brain",
+      "href": "./viewer.html?data=marmoset_sagittal_brain",
+      "organism": "Marmoset",
+      "tissue": "Sagittal brain",
+      "assay": "Spatial transcriptomics",
+      "cells": 421125,
+      "genes": 1000,
+      "slices": 22,
+      "chunks": 22,
+      "color_fields": [
+        "annotation",
+        "region"
+      ],
+      "tags": [
+        "421,125 cells",
+        "1,000 genes",
+        "22 slices",
+        "annotation / region"
+      ]
+    },
+    {
+      "id": "marmoset_cortex_no_NA_allgenes_uint8",
+      "title": "Marmoset Coronal Cortex Cellbin",
+      "description": "Adult common marmoset (Callithrix jacchus) coronal cortex single-cell spatial transcriptomics dataset, sourced from DOI: 10.1126/science.aea2673.Supports spatial 3D/2D, UMAP, gene expression.",
+      "icon": "🧠",
+      "viewer_data": "marmoset_cortex_no_NA_allgenes_uint8",
+      "href": "./viewer.html?data=marmoset_cortex_no_NA_allgenes_uint8",
+      "organism": "Marmoset",
+      "tissue": "Cortex",
+      "assay": "Spatial transcriptomics",
+      "cells": 12604378,
+      "genes": 18877,
+      "slices": 124,
+      "chunks": 124,
+      "color_fields": [
+        "layer",
+        "region",
+        "celltype"
+      ],
+      "tags": [
+        "12,604,378 cells",
+        "18,877 genes",
+        "124 slices",
+        "layer / region / celltype"
+      ],
+      "default_color_field": "layer"
+    },
+    {
+      "id": "marmoset1_cortex_bin100_allgenes_uint8",
+      "title": "Marmoset Coronal Cortex Bin100",
+      "description": "Adult common marmoset (Callithrix jacchus) coronal cortex Bin100 spatial transcriptomics dataset, sourced from DOI: 10.1126/science.aea2673. Supports spatial 3D/2D, UMAP, gene expression.",
+      "organism": "marmoset",
+      "tissue": "cortex",
+      "assay": "Spatial transcriptomics bin100",
+      "href": "./viewer.html?data=marmoset1_cortex_bin100_allgenes_uint8&v=bin100-20260623",
+      "viewer_data": "marmoset1_cortex_bin100_allgenes_uint8",
+      "tags": [
+        "2，914，230bins",
+        "all genes",
+        "124 slices",
+        "layer / region / celltype"
+      ],
+      "icon": "🧠",
+      "order": 0,
+      "color_fields": [
+        "layer",
+        "region",
+        "celltype"
+      ],
+      "default_color_field": "layer"
+    },
+    {
+      "id": "mouse1_cortex_allgenes_uint8",
+      "title": "Mouse1 Cortex Cellbin",
+      "description": "Adult mouse (Mus musculus) cortex single-cell spatial transcriptomics dataset, sourced from DOI: 10.1016/j.neuron.2025.02.015. All 75 slices are ordered by chip-number Z sequence; supports spatial 3D/2D, UMAP, gene expression.",
+      "icon": "🧠",
+      "viewer_data": "mouse1_cortex_allgenes_uint8",
+      "href": "./viewer.html?data=mouse1_cortex_allgenes_uint8",
+      "organism": "Mouse",
+      "tissue": "Cortex",
+      "assay": "Spatial transcriptomics",
+      "cells": 1127642,
+      "genes": 13523,
+      "slices": 75,
+      "chunks": 75,
+      "color_fields": [
+        "layer",
+        "region",
+        "celltype"
+      ],
+      "tags": [
+        "1,127,642 cells",
+        "13,523 genes",
+        "75 slices",
+        "layer / region / celltype"
+      ],
+      "default_color_field": "layer"
+    },
+    {
+      "id": "mouse1_cortex_bin50_allgenes_uint8",
+      "title": "Mouse Cortex Bin50",
+      "description": "Adult mouse (Mus musculus) cortex single-cell spatial transcriptomics dataset, sourced from DOI: 10.1016/j.neuron.2025.02.015. All 75 slices are ordered by chip-number Z sequence; supports spatial 3D/2D, UMAP, gene expression.",
+      "organism": "mouse",
+      "species": "Mouse",
+      "tissue": "cortex",
+      "assay": "Spatial transcriptomics bin50",
+      "viewer_data": "mouse1_cortex_bin50_allgenes_uint8",
+      "href": "./viewer.html?data=mouse1_cortex_bin50_allgenes_uint8&v=bin50-20260622",
+      "cell_count": 926906,
+      "gene_count": 14857,
+      "slice_count": 75,
+      "chunk_count": 75,
+      "color_fields": [
+        "layer",
+        "region",
+        "celltype"
+      ],
+      "default_color_field": "layer",
+      "z_visual_scale": 200,
+      "z_xy_display_ratio": 200,
+      "tags": [
+        "926,906 bins",
+        "14,857 genes",
+        "75 slices",
+        "layer / region / celltype"
+      ],
+      "icon": "🧠"
+    },
+    {
+      "id": "macaque1_cortex_allgenes_uint8",
+      "title": "Macaque Cortex Cellbin",
+      "description": "Adult macaque (Macaca) cortex single-cell spatial transcriptomics dataset, sourced from DOI: 10.1126/science.aea2673. All 118 slices are ordered by the provided anatomical z sequence; supports spatial 3D/2D, UMAP, gene expression.",
+      "species": "Macaque",
+      "type": "Cellbin spatial transcriptomics",
+      "href": "./viewer.html?data=macaque1_cortex_allgenes_uint8&v=macaque-20260618",
+      "data": "macaque1_cortex_allgenes_uint8",
+      "cells": 30825642,
+      "genes": 14682,
+      "slices": 118,
+      "icon": "🧠",
+      "tags": [
+        "118 slices",
+        "30.8M cells",
+        "14,682 genes",
+        "layer / region / celltype"
+      ],
+      "color_fields": [
+        "layer",
+        "region",
+        "celltype"
+      ],
+      "default_color_field": "layer"
+    },
+    {
+      "id": "macaque1_cortex_allgenes_uint8_sample10m",
+      "title": "Macaque1 Cortex Cellbin Sample 10M",
+      "subtitle": "Random 10M-cell sample from Macaque1 Cortex Cellbin",
+      "description": "Adult macaque (Macaca) cortex single-cell spatial transcriptomics dataset, sourced from DOI: 10.1126/science.aea2673. All 118 slices are ordered by the provided anatomical z sequence; supports spatial 3D/2D, UMAP, gene expression.",
+      "species": "Macaque",
+      "type": "Cellbin spatial transcriptomics sample",
+      "viewer_data": "macaque1_cortex_allgenes_uint8_sample10m",
+      "data": "macaque1_cortex_allgenes_uint8_sample10m",
+      "href": "./viewer.html?data=macaque1_cortex_allgenes_uint8_sample10m&v=sample10m-20260624",
+      "cells": 10000000,
+      "genes": 14682,
+      "slices": 118,
+      "chunks": 119,
+      "color_fields": [
+        "layer",
+        "region",
+        "celltype"
+      ],
+      "default_color_field": "layer",
+      "z_visual_scale": 1000,
+      "z_xy_display_ratio": 1000,
+      "icon": "🧠",
+      "tags": [
+        "10M sampled cells",
+        "14,682 genes",
+        "118 slices",
+        "layer / region / celltype"
+      ]
+    },
+    {
+      "id": "macaque1_cortex_bin200_allgenes_uint8",
+      "title": "Macaque Cortex Bin200",
+      "subtitle": "Macaque cortex bin200 dataset",
+      "description": "Adult macaque (Macaca) cortex Bin200 spatial transcriptomics dataset, sourced from DOI: 10.1126/science.aea2673.All 118 slices are ordered by the provided anatomical z sequence; supports spatial 3D/2D, UMAP, gene expression.",
+      "organism": "macaque",
+      "species": "Macaque",
+      "tissue": "cortex",
+      "assay": "Spatial transcriptomics bin200",
+      "viewer_data": "macaque1_cortex_bin200_allgenes_uint8",
+      "href": "./viewer.html?data=macaque1_cortex_bin200_allgenes_uint8&v=bin200-20260623",
+      "cell_count": 3190312,
+      "gene_count": 15225,
+      "slice_count": 118,
+      "chunk_count": 118,
+      "color_fields": [
+        "layer",
+        "region",
+        "celltype"
+      ],
+      "default_color_field": "layer",
+      "z_visual_scale": 1000,
+      "z_xy_display_ratio": 1000,
+      "tags": [
+        "3,190,312 bins",
+        "15,225 genes",
+        "118 slices",
+        "layer / region / celltype"
+      ],
+      "icon": "🧠"
+    }
+  ]
+}

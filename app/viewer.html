@@ -1,0 +1,2604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpatialViz - Spatial / UMAP Viewer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TrackballControls.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel-bg: rgba(255, 255, 255, 0.88);
+      --panel-border: rgba(15, 23, 42, 0.14);
+      --accent: #2563eb;
+      --accent-soft: rgba(37, 99, 235, 0.12);
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --input-bg: rgba(248, 250, 252, 0.92);
+      --shadow: 0 10px 32px rgba(15, 23, 42, 0.16);
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      color: var(--text-main);
+    }
+    #top-banner {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      right: 20px;
+      height: 64px;
+      z-index: 130;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(239,246,255,0.9));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(37, 99, 235, 0.16);
+      box-shadow: var(--shadow);
+      user-select: none;
+    }
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .brand-logo-link {
+      display: inline-flex;
+      flex: 0 0 auto;
+      border-radius: 14px;
+    }
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #38bdf8, #2563eb 52%, #7c3aed);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 12px 32px rgba(37,99,235,0.36);
+      position: relative;
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+    .brand-logo::before {
+      content: "";
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.78);
+      box-shadow: 13px -9px 0 -6px rgba(255,255,255,0.9), -10px 11px 0 -7px rgba(255,255,255,0.86);
+    }
+    .brand-name {
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      color: #0f172a;
+    }
+    .brand-subtitle {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-sub);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .banner-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+    .language-toggle {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.055);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+    }
+    .lang-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: transparent;
+      color: var(--text-sub);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.18s;
+    }
+    .lang-btn.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.22);
+    }
+    .banner-hide-btn {
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.055);
+      color: var(--text-sub);
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+      cursor: pointer;
+      transition: 0.18s;
+    }
+    .banner-hide-btn:hover {
+      background: rgba(239, 68, 68, 0.12);
+      color: #ef4444;
+    }
+    #top-banner.banner-hidden { display: none; }
+    #banner-restore-btn {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 135;
+      display: none;
+      border-radius: 999px;
+      padding: 8px 13px;
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    #banner-restore-btn.show { display: block; }
+    #canvas-container {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: #ffffff;
+    }
+    #ui-panel,
+    #legend-panel,
+    #expression-hist-panel,
+    #view-buttons,
+    #banner-restore-btn {
+      background: var(--panel-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--shadow);
+      z-index: 100;
+      user-select: none;
+    }
+    #banner-restore-btn { z-index: 135; }
+    #ui-panel {
+      position: absolute;
+      top: 96px;
+      left: 20px;
+      width: 280px;
+      max-height: calc(100vh - 176px);
+      overflow: hidden;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    #ui-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    #ui-header-row .panel-title {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+    #dataset-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1 1 auto;
+    }
+    #ui-collapse-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      border: 1px solid var(--panel-border);
+      background: rgba(15,23,42,0.05);
+      color: var(--text-sub);
+      cursor: pointer;
+      font-weight: 900;
+      line-height: 1;
+    }
+    #ui-controls {
+      max-height: calc(100vh - 244px);
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    #ui-panel.collapsed #ui-controls {
+      display: none;
+    }
+    #view-buttons {
+      position: absolute;
+      top: 96px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 12px;
+      padding: 6px;
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      align-items: center;
+      white-space: nowrap;
+    }
+    #grid-toggle-wrap {
+      position: absolute;
+      top: 96px;
+      left: calc(50% + 245px);
+      transform: translateX(-50%);
+      z-index: 101;
+    }
+    #grid-toggle-wrap {
+      box-sizing: border-box;
+      height: 46px;
+      align-items: center;
+      background: #E0E0E0;
+    }
+    #btn-grid-toggle {
+      min-width: 78px;
+      height: 34px;
+      box-sizing: border-box;
+    }
+    #legend-panel {
+      position: absolute;
+      top: 96px;
+      right: 20px;
+      width: 260px;
+      max-height: calc(100vh - 116px);
+      overflow: hidden;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    #legend-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    #legend-header-row .panel-title {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+    #legend-collapse-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      border: 1px solid var(--panel-border);
+      background: rgba(15,23,42,0.05);
+      color: var(--text-sub);
+      cursor: pointer;
+      font-weight: 900;
+      line-height: 1;
+    }
+    #legend-panel.compact {
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+    #legend-panel.compact #legend-hint {
+      display: none;
+    }
+    #legend-panel.compact #legend-header-row {
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+    }
+    #legend-panel.compact #legend-container {
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    #ui-panel.collapsed,
+    #legend-panel.collapsed {
+      height: 58px;
+      max-height: 58px;
+      padding-top: 16px;
+      padding-bottom: 16px;
+    }
+    #ui-panel.collapsed #ui-header-row,
+    #legend-panel.collapsed #legend-header-row {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    #legend-panel.collapsed #legend-hint,
+    #legend-panel.collapsed #legend-container {
+      display: none;
+    }
+    #expression-hist-panel {
+      position: absolute;
+      right: 20px;
+      top: 460px;
+      width: 260px;
+      border-radius: 14px;
+      padding: 16px;
+      display: none;
+      z-index: 100;
+    }
+    #expression-hist-canvas {
+      width: 100%;
+      height: 120px;
+      display: block;
+      border-radius: 8px;
+      background: rgba(248,250,252,0.86);
+      border: 1px solid rgba(15,23,42,0.08);
+    }
+    #expression-hist-meta {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-sub);
+      line-height: 1.4;
+      font-variant-numeric: tabular-nums;
+    }
+    .panel-title {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 8px;
+      letter-spacing: 0.3px;
+    }
+    .control-group {
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+    .control-group:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .control-label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 11px;
+      color: var(--text-sub);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      margin-bottom: 5px;
+      color: var(--text-sub);
+    }
+    .stats-val {
+      color: var(--accent);
+      font-weight: 800;
+      text-align: right;
+    }
+    select,
+    input[type="text"] {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 7px 8px;
+      border-radius: 7px;
+      font-size: 12px;
+      outline: none;
+    }
+    select:focus,
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      margin-top: 7px;
+    }
+    .hint {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-sub);
+      line-height: 1.45;
+    }
+    .view-warning {
+      display: none;
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      background: rgba(245, 158, 11, 0.12);
+      color: #92400e;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .view-warning.show { display: block; }
+    .btn-view,
+    .btn-apply,
+    .btn-small {
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: 0.18s;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .btn-view {
+      padding: 8px 16px;
+      background: transparent;
+      color: var(--text-sub);
+    }
+    .btn-view:hover {
+      color: var(--text-main);
+      background: rgba(15, 23, 42, 0.06);
+    }
+    .btn-view.active {
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+    }
+    .btn-apply {
+      padding: 7px 10px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(37, 99, 235, 0.35);
+      color: var(--accent);
+    }
+    .btn-apply:hover {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .btn-small {
+      padding: 6px 8px;
+      background: rgba(15, 23, 42, 0.05);
+      color: var(--text-sub);
+      border: 1px solid var(--panel-border);
+    }
+    .btn-small:hover {
+      color: var(--text-main);
+      background: rgba(15, 23, 42, 0.08);
+    }
+    #legend-container {
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 6px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: 0.18s;
+      font-size: 12px;
+      color: var(--text-main);
+    }
+    .legend-item:hover { background: rgba(15, 23, 42, 0.055); }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      cursor: pointer;
+    }
+    .legend-dot:hover {
+      transform: scale(1.45);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.16);
+    }
+    #cluster-color-popover {
+      position: fixed;
+      z-index: 9999;
+      display: none;
+      width: 248px;
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.98);
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 18px 45px rgba(15,23,42,0.28);
+      user-select: none;
+    }
+    .color-pop-title {
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--text-sub);
+      margin: 0 0 7px;
+    }
+    #color-board-255 {
+      display: grid;
+      grid-template-columns: repeat(17, 12px);
+      gap: 2px;
+      margin-bottom: 9px;
+    }
+    #recommended-colors {
+      display: grid;
+      grid-template-columns: repeat(10, 18px);
+      gap: 4px;
+    }
+    .color-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1px solid rgba(15,23,42,0.12);
+      cursor: pointer;
+    }
+    .color-swatch.recommended {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+    }
+    .color-swatch:hover {
+      transform: scale(1.18);
+      border-color: #111827;
+    }
+    .legend-count {
+      margin-left: auto;
+      color: var(--text-sub);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .dimmed { opacity: 0.25; }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--accent);
+      font-size: 16px;
+      font-weight: 800;
+      background: rgba(255,255,255,0.9);
+      padding: 13px 24px;
+      border-radius: 10px;
+      z-index: 200;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--panel-border);
+      max-width: 70vw;
+      text-align: center;
+    }
+    #gene-scale {
+      height: 10px;
+      margin-top: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #1d4ed8 0%, #0ea5e9 25%, #facc15 60%, #ef4444 100%);
+      border: 1px solid rgba(15,23,42,0.12);
+      display: none;
+    }
+    #expression-palette-select {
+      display: none;
+      margin-top: 7px;
+      font-size: 12px;
+    }
+    #bottom-status {
+      position: fixed;
+      left: 20px;
+      right: 20px;
+      bottom: 18px;
+      z-index: 180;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 32px;
+      padding: 10px 16px;
+      border-radius: 14px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      color: var(--text-sub);
+      font-size: 12px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    #bottom-status.error {
+      color: #b91c1c;
+      border-color: rgba(239,68,68,0.35);
+      background: rgba(254,242,242,0.92);
+    }
+    #status-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #status-progress-wrap {
+      flex: 0 0 280px;
+      max-width: 34vw;
+      min-width: 180px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #status-progress-title {
+      font-size: 10px;
+      line-height: 1;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      font-weight: 900;
+    }
+    #status-progress-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.10);
+      overflow: hidden;
+    }
+    #status-progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #38bdf8, #2563eb, #7c3aed);
+      transition: width 160ms ease;
+    }
+    #status-progress-label {
+      flex: 0 0 38px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+    }
+    #bottom-status.error #status-progress-label,
+    #bottom-status.error #status-progress-title {
+      color: #b91c1c;
+    }
+
+    #hud-label {
+      position: absolute;
+      right: 24px;
+      bottom: 78px;
+      width: 118px;
+      height: 118px;
+      z-index: 90;
+      color: rgba(71,85,105,0.78);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      box-sizing: border-box;
+      padding-bottom: 10px;
+      background:
+        radial-gradient(circle at 42% 36%, rgba(148,163,184,0.10), rgba(255,255,255,0.06) 58%, rgba(37,99,235,0.05) 100%);
+      border: 1px solid rgba(15,23,42,0.18);
+      border-radius: 50%;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.10), inset 0 0 18px rgba(255,255,255,0.18);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    @media (max-width: 980px) {
+      #legend-panel { display: none; }
+    }
+    @media (max-width: 760px) {
+      #top-banner {
+        height: auto;
+        min-height: 64px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .brand-subtitle { white-space: normal; }
+      #ui-panel { width: 260px; top: 112px; }
+      #view-buttons {
+        left: 20px;
+        top: auto;
+        bottom: 64px;
+        right: 108px;
+        transform: none;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      #grid-toggle-wrap {
+        top: auto;
+        bottom: 64px;
+        left: auto;
+        right: 20px;
+        transform: none;
+      }
+      #grid-toggle-wrap { height: 38px; }
+      #btn-grid-toggle { min-width: 78px; height: 28px; }
+      .btn-view { padding: 7px 10px; }
+      #bottom-status { left: 12px; right: 12px; bottom: 10px; gap: 8px; padding: 8px 10px; }
+      #status-progress-wrap { flex-basis: 140px; min-width: 100px; max-width: 38vw; }
+      #status-progress-title { font-size: 9px; }
+      #hud-label { display: none; }
+    }
+  
+    #color-by-row { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+    #color-by-select { flex: 1; min-width: 0; }
+</style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="loading">Initializing Engine & Loading Data...</div>
+  <div id="bottom-status">
+    <div id="status-text">Initializing...</div>
+    <div id="status-progress-wrap">
+      <div id="status-progress-title">Loading Progress</div>
+      <div id="status-progress-track"><div id="status-progress-bar"></div></div>
+    </div>
+    <div id="status-progress-label">0%</div>
+  </div>
+  <div id="hud-label">XYZ</div>
+  <div id="top-banner">
+    <div class="brand-block">
+      <a class="brand-logo-link" href="./index.html" title="Back to homepage" aria-label="Back to SpatialViz homepage">
+        <span class="brand-logo" aria-hidden="true"></span>
+      </a>
+      <div>
+        <div class="brand-name">SpatialViz</div>
+        <div class="brand-subtitle" id="banner-subtitle">Spatial transcriptomics visualization workspace</div>
+      </div>
+    </div>
+    <div class="banner-actions">
+      <div class="language-toggle" aria-label="Language switch">
+        <button class="lang-btn active" id="lang-en" onclick="setLanguage('en')">EN</button>
+        <button class="lang-btn" id="lang-zh" onclick="setLanguage('zh')">中文</button>
+      </div>
+      <div class="language-toggle" aria-label="Canvas background switch">
+        <button class="lang-btn active" id="theme-light" onclick="setCanvasTheme('light')">Light</button>
+        <button class="lang-btn" id="theme-dark" onclick="setCanvasTheme('dark')">Dark</button>
+      </div>
+      <button class="banner-hide-btn" id="banner-hide-btn" onclick="toggleBanner(false)" title="Hide banner" aria-label="Hide banner">×</button>
+    </div>
+  </div>
+  <button id="banner-restore-btn" onclick="toggleBanner(true)">Show Banner</button>
+
+
+  <div id="ui-panel">
+    <div id="ui-header-row">
+      <div class="panel-title" id="dataset-title">Dataset</div>
+      <button id="ui-collapse-btn" onclick="toggleUiCollapse()" title="Collapse / Expand">−</button>
+    </div>
+    <div id="ui-controls">
+
+    <div class="control-group">
+      <div class="stats-row"><span id="label-total-cells">Total Cells</span><span class="stats-val" id="total-count">0</span></div>
+      <div class="stats-row"><span id="label-visible-cells">Visible Cells</span><span class="stats-val" id="cell-count">0</span></div>
+      <div class="stats-row"><span id="label-clusters">Clusters</span><span class="stats-val" id="cluster-count">0</span></div>
+      <div class="stats-row"><span id="label-current-view">Current View</span><span class="stats-val" id="view-label">Spatial 3D</span></div>
+    </div>
+
+    <div class="control-group">
+      <label class="control-label" id="label-point-size">Point Size</label>
+      <input type="range" id="point-size-slider" min="0.2" max="8" step="0.1" value="2.4" />
+      <div class="hint"><span id="point-size-value">2.4</span></div>
+    </div>
+    <div class="control-group">
+      <label class="control-label" id="label-point-shape">Point Shape</label>
+      <select id="point-shape-select">
+        <option value="sphere" selected>Small sphere</option>
+        <option value="circle">Flat circle</option>
+        <option value="square">Square</option>
+        <option value="diamond">Diamond</option>
+        <option value="soft">Soft glow</option>
+      </select>
+      <div class="hint" id="point-shape-hint">Applied to all Spatial / UMAP views.</div>
+    </div>
+    <div class="control-group">
+      <label class="control-label" id="label-point-opacity">Point Opacity</label>
+      <input type="range" id="point-opacity-slider" min="0.05" max="1" step="0.05" value="0.9" />
+      <div class="hint"><span id="point-opacity-value">0.90</span></div>
+    </div>
+    <div class="control-group">
+      <label class="control-label" id="label-render-mode">3D Render Mode</label>
+      <select id="render-mode-select">
+        <option value="auto" selected>Auto: opaque in 3D</option>
+        <option value="opaque">Opaque</option>
+        <option value="transparent">Transparent / opacity slider</option>
+      </select>
+      <div class="hint" id="render-mode-hint">Auto keeps 3D points opaque for correct depth; transparent mode uses the opacity slider.</div>
+      <div class="view-warning" id="spatial3d-warning">3D view defaults to opaque points for correct front/back occlusion. If you switch to transparent rendering, distant slices may show through foreground points.</div>
+    </div>
+
+    <div class="control-group">
+      <label class="control-label" id="label-z-spacing">3D Slice Spacing</label>
+      <input type="range" id="z-spacing-slider" min="1" max="1000" step="1" value="1" />
+      <div class="hint"><span id="z-spacing-value">1x</span></div>
+      <div class="hint" id="z-spacing-hint">Expands only the 3D display depth; raw slice Z values still drive slice selection.</div>
+    </div>
+
+    <div class="control-group">
+      <label class="control-label" id="label-chip-slice">Chip / Slice</label>
+      <select id="slice-selector">
+        <option value="all" data-i18n-en="All Slices" data-i18n-zh="全部芯片">All Slices</option>
+      </select>
+      <input type="range" id="slice-slider" min="0" max="0" value="0" step="1" />
+      <div class="hint" id="slice-hint">Spatial 2D focuses on the selected chip/slice. Spatial 3D displays all slices by default.</div>
+    </div>
+
+    <div class="control-group">
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <button class="btn-small" id="btn-cluster-color" onclick="setColorMode('cluster')">Cluster Color</button>
+        <button class="btn-small" id="btn-expression-color" onclick="applyGeneExpression()">Expression Color</button>
+      </div>
+      <label class="control-label" id="label-gene-expression">Gene Expression</label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="gene-search" placeholder="Search gene, e.g. Gene0000" />
+        <button class="btn-apply" onclick="applyGeneExpression()">Go</button>
+      </div>
+      <select id="gene-select" size="8" style="margin-top:7px;"></select>
+      <input type="range" id="gene-max-slider" min="1" max="100" step="0.1" value="100" disabled />
+      <div id="gene-scale"></div>
+      <select id="expression-palette-select" onchange="setExpressionPalette(this.value)">
+        <option value="blueYellowRed">Blue → Yellow → Red</option>
+        <option value="viridis">Viridis</option>
+        <option value="magma">Magma</option>
+        <option value="plasma">Plasma</option>
+        <option value="greenPurple">Green → Purple</option>
+        <option value="grayRed">Gray → Red</option>
+      </select>
+      <div class="hint" id="gene-hint">Supports datasets with an expression column. If absent, a simulated expression preview is used.</div>
+    </div>
+    </div>
+  </div>
+  <div id="view-buttons">
+    <button class="btn-view active" data-view="spatial3d">Spatial 3D</button>
+    <button class="btn-view" data-view="spatial2d">Spatial 2D</button>
+    <button class="btn-view" data-view="umap2d">UMAP 2D</button>
+    <button class="btn-view" id="btn-reset-camera" onclick="resetCamera()">Reset</button>
+  </div>
+  <div class="language-toggle" id="grid-toggle-wrap" aria-label="Grid switch">
+    <button class="lang-btn active" id="btn-grid-toggle" onclick="toggleGrid()">Grid On</button>
+  </div>
+
+  <div id="legend-panel">
+    <div id="legend-header-row">
+      <div class="panel-title" id="legend-title">Legend</div>
+      <button id="legend-collapse-btn" onclick="toggleLegendCollapse()" title="Collapse / Expand">−</button>
+    </div>
+    <div class="hint" id="legend-hint" style="margin-top:-4px; margin-bottom:10px;">Click to hide/show a cluster; double-click to show only that cluster.</div>
+    <div id="color-by-row"><label id="label-color-by" for="color-by-select">Color By</label><select id="color-by-select"></select></div>
+    <div id="legend-container"></div>
+  </div>
+  <div id="cluster-color-popover">
+    <div class="color-pop-title">255-color board</div>
+    <div id="color-board-255"></div>
+    <div class="color-pop-title">Recommended colors</div>
+    <div id="recommended-colors"></div>
+  </div>
+  <div id="expression-hist-panel">
+    <div class="panel-title" id="expression-hist-title">Expression Distribution</div>
+    <canvas id="expression-hist-canvas" width="228" height="120"></canvas>
+    <div id="expression-hist-meta">Switch to Expression Color to show distribution.</div>
+  </div>
+
+  <script>
+    let scene, camera, renderer, controls, points;
+    let gridXY, gridXZ, axesHelper;
+    let gridVisible = true;
+    let hudScene, hudCamera, hudAxes, hudRenderer;
+    let config = null;
+    let rawData = [];
+    let currentView = 'spatial3d';
+    let colorMode = 'cluster';
+    let activeSlice = 'all';
+    let hiddenClusters = new Set();
+    let activeClusterField = 'cluster';
+    let clusterFieldColumn = 5;
+    let floatsPerCell = 6;
+    let hasGeneColumn = false;
+    let geneExpressionColumnIndex = null;
+    let geneMax = 1;
+    let geneScaleMin = 0;
+    let expressionPalette = 'blueYellowRed';
+    let activeColorClusterIdx = null;
+    let knownSlices = [];
+    let totalCells = 0;
+    let currentLang = 'en';
+    let expressionManifest = null;
+    let expressionIndices = [];
+    let currentGeneExpression = [];
+    let currentGeneName = '';
+    let expressionLoadToken = 0;
+    let sortedGenes = [];
+    let pointSize = 2.4;
+    let pointOpacity = 0.9;
+    let pointShape = 'sphere';
+    let renderMode = 'auto';
+    let zVisualScale = 1;
+    let zVisualScaleMax = 1000;
+    let zVisualScaleAuto = true;
+    let rawZCenter = 0;
+    let rawZRange = 1;
+    let gridSizeCurrent = 0;
+    let gridDivisionsCurrent = 0;
+    let canvasTheme = 'light';
+    let pointTextureCache = {};
+    let dataDir = 'data';
+
+    function sanitizeDataDir(value) {
+      value = String(value || 'data').trim();
+      if (!value) return 'data';
+      value = value.replace(/^\/+/, '').replace(/\/+$/, '');
+      if (!/^[A-Za-z0-9._\/-]+$/.test(value) || value.includes('..')) {
+        console.warn('Invalid data directory, fallback to data:', value);
+        return 'data';
+      }
+      return value;
+    }
+
+    function initDataDirFromUrl() {
+      const params = new URLSearchParams(window.location.search || '');
+      dataDir = sanitizeDataDir(params.get('data') || params.get('dataset') || 'data');
+      document.body.dataset.dataDir = dataDir;
+    }
+
+    function dataPath(path) {
+      path = String(path || '').replace(/^\.\//, '').replace(/^\/+/, '');
+      if (!path) return dataDir + '/';
+      if (/^(https?:)?\/\//.test(path)) return path;
+      if (path.startsWith(dataDir + '/')) return path;
+      if (path.startsWith('data/')) return dataDir + '/' + path.slice(5);
+      return dataDir + '/' + path;
+    }
+
+    const i18n = {
+      en: {
+        bannerSubtitle: 'Spatial transcriptomics visualization workspace',
+        totalCells: 'Total Cells',
+        visibleCells: 'Visible Cells',
+        clusters: 'Clusters',
+        currentView: 'Current View',
+        chipSlice: 'Chip / Slice',
+        allSlices: 'All Slices',
+        allSlicesLong: 'All Slices / 3D View',
+        sliceHint: 'Spatial 2D focuses on the selected chip/slice. Spatial 3D displays all slices by default.',
+        geneExpression: 'Gene Expression',
+        pointOpacity: 'Point Opacity',
+        renderMode: '3D Render Mode',
+        renderAuto: 'Auto: opaque in 3D',
+        renderOpaque: 'Opaque',
+        renderTransparent: 'Transparent / opacity slider',
+        renderModeHint: 'Auto keeps 3D points opaque for correct depth; transparent mode uses the opacity slider.',
+        spatial3dWarning: '3D view defaults to opaque points for correct front/back occlusion. If you switch to transparent rendering, distant slices may show through foreground points.',
+        zSpacing: '3D Slice Spacing',
+        zSpacingHint: 'Expands only the 3D display depth; raw slice Z values still drive slice selection.',
+        genePlaceholder: 'Gene name, e.g. GeneA',
+        go: 'Go',
+        clusterColor: 'Cluster Color',
+        expressionColor: 'Expression Color',
+        geneHint: 'Supports datasets with an expression column. If absent, a simulated expression preview is used.',
+        reset: 'Reset',
+        spatial3d: 'Spatial 3D',
+        spatial2d: 'Spatial 2D',
+        umap2d: 'UMAP 2D',
+        legend: 'Legend',
+        legendHint: 'Click to hide/show a cluster; double-click to show only that cluster.',
+        chip: 'Chip',
+        slice: 'Slice',
+        showingGene: gene => `Showing expression for ${gene}. Red/yellow = high, blue = low.`,
+        simulatedGene: gene => `No expression column detected. Showing simulated expression preview for ${gene}.`,
+        expressionDistribution: 'Expression Distribution'
+      },
+      zh: {
+        bannerSubtitle: '空间转录组可视化分析工作台',
+        totalCells: '总细胞数',
+        visibleCells: '当前可见细胞',
+        clusters: '细胞群数量',
+        currentView: '当前视图',
+        chipSlice: '芯片 / 切片',
+        allSlices: '全部芯片',
+        allSlicesLong: '全部芯片 / 三维视图',
+        sliceHint: '空间二维视图用于深入查看当前选择的单个芯片或切片；空间三维视图默认显示全部切片。',
+        geneExpression: '基因表达',
+        pointOpacity: '点透明度',
+        renderMode: '3D 渲染模式',
+        renderAuto: '自动：3D 默认不透明',
+        renderOpaque: '不透明',
+        renderTransparent: '透明 / 使用透明度滑条',
+        renderModeHint: '自动模式下 3D 点默认不透明，以保证前后遮挡关系；透明模式会使用点透明度滑条。',
+        spatial3dWarning: '3D 视图默认使用不透明点，以保证正确的前后遮挡。如果切换到透明渲染，远处切片可能会透过前景点显示。',
+        zSpacing: '3D 切片间距',
+        zSpacingHint: '只拉开三维显示深度；原始切片 Z 值仍用于切片选择。',
+        genePlaceholder: '输入基因名，例如 GeneA',
+        go: '查看',
+        clusterColor: '细胞群配色',
+        expressionColor: '表达量配色',
+        geneHint: 'Supports datasets with an expression column. If absent, a simulated expression preview is used.',
+        reset: '重置',
+        spatial3d: 'Spatial 3D',
+        spatial2d: 'Spatial 2D',
+        umap2d: 'UMAP 2D',
+        legend: '图例',
+        legendHint: '单击隐藏/显示某个 cluster；双击只显示该 cluster。',
+        chip: '芯片',
+        slice: '切片',
+        showingGene: gene => `正在显示 ${gene} 的表达量；红色或黄色表示高表达，蓝色表示低表达。`,
+        simulatedGene: gene => `No expression column was detected in the current data. Using simulated ${gene} expression to preview the color mapping.`,
+        expressionDistribution: '表达量分布'
+      }
+    };
+
+    const fallbackColors = [
+      '#0ea5e9','#8b5cf6','#f59e0b','#ef4444','#22c55e','#6366f1','#ec4899','#14b8a6',
+      '#f97316','#84cc16','#a855f7','#78716c','#0891b2','#be123c','#db2777','#9333ea',
+      '#c026d3','#4f46e4','#7c3aed','#2563eb','#059669','#d97706','#b91c1c','#dc2626','#0d9488'
+    ];
+
+    function setStatus(text, progress = null, isError = false) {
+      const status = document.getElementById('bottom-status');
+      const textEl = document.getElementById('status-text');
+      const bar = document.getElementById('status-progress-bar');
+      const label = document.getElementById('status-progress-label');
+      if (status) status.classList.toggle('error', !!isError);
+      if (textEl && text !== undefined) textEl.textContent = text;
+      if (progress !== null && progress !== undefined) {
+        const pct = Math.max(0, Math.min(100, Number(progress) || 0));
+        if (bar) bar.style.width = pct.toFixed(0) + '%';
+        if (label) label.textContent = pct.toFixed(0) + '%';
+      }
+    }
+
+    function setCanvasTheme(theme) {
+      canvasTheme = theme === 'dark' ? 'dark' : 'light';
+      const color = canvasTheme === 'dark' ? 0x000000 : 0xffffff;
+      const hex = canvasTheme === 'dark' ? '#000000' : '#ffffff';
+      document.getElementById('theme-light')?.classList.toggle('active', canvasTheme === 'light');
+      document.getElementById('theme-dark')?.classList.toggle('active', canvasTheme === 'dark');
+      if (scene) scene.background = new THREE.Color(hex);
+      if (renderer) renderer.setClearColor(color, 1);
+    }
+
+    async function loadCellChunksWithProgress() {
+      const files = config.chunks || [];
+      const chunks = new Array(files.length);
+      let loaded = 0;
+      setStatus(`Loading cell chunks 0/${files.length}`, 5);
+      await Promise.all(files.map(async (file, idx) => {
+        chunks[idx] = await loadChunk(file);
+        loaded++;
+        setStatus(`Loading cell chunks ${loaded}/${files.length}`, 5 + (loaded / Math.max(1, files.length)) * 70);
+      }));
+      return chunks;
+    }
+
+    async function startBackgroundExpressionLoad() {
+      if (!config?.expression) {
+        setStatus('Cell data ready. No sparse expression manifest configured.', 100);
+        return;
+      }
+      setStatus('Cell data ready. Loading gene list in background...', 82);
+      try {
+        await initExpressionManifest();
+        buildSortedGenes();
+        setupGeneSelector();
+        setStatus('Ready. Cell chunks loaded; gene list loaded. Expression indices load on demand.', 100);
+      } catch (err) {
+        console.warn('Background expression loading failed:', err);
+        setStatus('Cell data ready. Expression metadata failed: ' + err.message, 100, true);
+      }
+    }
+
+    async function init() {
+      const loading = document.getElementById('loading');
+      try {
+        initDataDirFromUrl();
+        loading.textContent = `Loading config from ${dataDir}...`;
+        setStatus(`Loading config from ${dataDir}...`, 2);
+        config = await (await fetch(dataPath('config.json'), { cache: 'no-store' })).json();
+        normalizeConfig();
+        inferDataFormat();
+        initUIFromConfig();
+
+        loading.textContent = `Loading ${(config.n_cells || 0).toLocaleString()} cells...`;
+        rawData = await loadCellChunksWithProgress();
+        // Cell chunk layout is defined by config.floats_per_cell / config.cell_record.
+        totalCells = rawData.reduce((sum, buf) => sum + Math.floor(buf.length / floatsPerCell), 0);
+        document.getElementById('total-count').textContent = totalCells.toLocaleString();
+        initExpressionBuffers();
+        detectSlicesFromData();
+        calculateSpatial3DScale();
+        populateSliceSelector();
+        calculateGeneRange();
+
+        loading.textContent = 'Building scene...';
+        setStatus('Building scene...', 78);
+        initScene();
+        updateMesh(false);
+        switchView('spatial3d');
+        loading.style.display = 'none';
+        setStatus('Cell chunks loaded. Rendering is ready.', 82);
+        animate();
+
+        startBackgroundExpressionLoad();
+      } catch (err) {
+        console.error(err);
+        loading.style.display = 'none';
+        setStatus('Error: ' + err.message, 100, true);
+      }
+    }
+    async function loadChunk(file) {
+      const res = await fetch(dataPath(file));
+      if (!res.ok) throw new Error(`Failed to fetch ${file}`);
+      const lower = file.toLowerCase();
+      if (lower.endsWith('.json')) {
+        const json = await res.json();
+        return normalizeJsonChunk(json, file);
+      }
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength % 4 !== 0) {
+        throw new Error(`${file} is not a valid Float32 binary chunk: byteLength ${buf.byteLength} is not divisible by 4`);
+      }
+      const arr = new Float32Array(buf);
+      if (floatsPerCell && arr.length % floatsPerCell === 0) {
+        return arr;
+      }
+      if (arr.length % 7 === 0) {
+        hasGeneColumn = true;
+        floatsPerCell = 7;
+        return arr;
+      }
+      if (arr.length % 6 === 0) {
+        hasGeneColumn = false;
+        floatsPerCell = 7;
+        return normalizeSixFloatBinaryChunk(arr);
+      }
+      throw new Error(`${file} has ${arr.length} float values, which is not divisible by configured floats_per_cell=${floatsPerCell}, 6, or 7`);
+    }
+    function normalizeSixFloatBinaryChunk(arr) {
+      const n = Math.floor(arr.length / 6);
+      const out = new Float32Array(n * 7);
+      for (let i = 0; i < n; i++) {
+        const src = i * 6;
+        const dst = i * 7;
+        const cidx = Math.round(arr[src + 5] || 0);
+        out[dst] = arr[src]; out[dst + 1] = arr[src + 1]; out[dst + 2] = arr[src + 2];
+        out[dst + 3] = arr[src + 3]; out[dst + 4] = arr[src + 4]; out[dst + 5] = cidx;
+        out[dst + 6] = simulatedGeneValue(arr[src], arr[src + 1], cidx);
+      }
+      return out;
+    }
+    function normalizeJsonChunk(json, file) {
+      const cells = Array.isArray(json) ? json : json.cells;
+      if (!Array.isArray(cells)) throw new Error(`${file} JSON does not contain a cells array`);
+      const out = new Float32Array(cells.length * 7);
+      let detectedGene = false;
+      for (let i = 0; i < cells.length; i++) {
+        const cell = cells[i];
+        const dst = i * 7;
+        if (Array.isArray(cell)) {
+          const x = Number(cell[0] || 0), y = Number(cell[1] || 0), z = Number(cell[2] || 0);
+          const u1 = Number(cell[3] || 0), u2 = Number(cell[4] || 0);
+          const oldJsonLayout = cell.length >= 8;
+          const cidx = Math.round(Number(oldJsonLayout ? cell[7] : (cell[5] || 0)));
+          const gene = (!oldJsonLayout && cell.length >= 7) ? Number(cell[6] || 0) : simulatedGeneValue(x, y, cidx);
+          if (!oldJsonLayout && cell.length >= 7) detectedGene = true;
+          out[dst] = x; out[dst + 1] = y; out[dst + 2] = z; out[dst + 3] = u1;
+          out[dst + 4] = u2; out[dst + 5] = cidx; out[dst + 6] = gene;
+        } else if (cell && typeof cell === 'object') {
+          const x = Number(cell.x ?? cell.spatial_x ?? 0), y = Number(cell.y ?? cell.spatial_y ?? 0);
+          const z = Number(cell.z ?? cell.slice ?? 0), u1 = Number(cell.umap1 ?? cell.umap_x ?? cell.u1 ?? 0);
+          const u2 = Number(cell.umap2 ?? cell.umap_y ?? cell.u2 ?? 0);
+          const cidx = Math.round(Number(cell.cluster ?? cell.cluster_idx ?? cell.cidx ?? 0));
+          const hasGene = cell.gene_exp !== undefined || cell.expression !== undefined || cell.GeneA !== undefined;
+          const gene = Number(cell.gene_exp ?? cell.expression ?? cell.GeneA ?? simulatedGeneValue(x, y, cidx));
+          if (hasGene) detectedGene = true;
+          out[dst] = x; out[dst + 1] = y; out[dst + 2] = z; out[dst + 3] = u1;
+          out[dst + 4] = u2; out[dst + 5] = cidx; out[dst + 6] = gene;
+        }
+      }
+      if (detectedGene) hasGeneColumn = true;
+      return out;
+    }
+    function simulatedGeneValue(x, y, cidx) {
+      return ((Math.sin(x * 0.015 + cidx) + Math.cos(y * 0.013 - cidx)) * 0.5 + 1) * (1 + (cidx % 5));
+    }
+    function setLanguage(lang) {
+      currentLang = lang;
+      const t = i18n[currentLang];
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.getElementById('lang-en')?.classList.toggle('active', lang === 'en');
+      document.getElementById('lang-zh')?.classList.toggle('active', lang === 'zh');
+      setCanvasTheme(canvasTheme);
+      setText('banner-subtitle', t.bannerSubtitle);
+      setText('label-total-cells', t.totalCells);
+      setText('label-visible-cells', t.visibleCells);
+      setText('label-clusters', t.clusters);
+      setText('label-current-view', t.currentView);
+      setText('label-chip-slice', t.chipSlice);
+      setText('label-point-size', currentLang === 'zh' ? '点大小' : 'Point Size');
+      setText('label-point-opacity', t.pointOpacity || (currentLang === 'zh' ? '点透明度' : 'Point Opacity'));
+      setText('label-render-mode', t.renderMode || '3D Render Mode');
+      setText('render-mode-hint', t.renderModeHint || 'Auto keeps 3D points opaque for correct depth; transparent mode uses the opacity slider.');
+      setText('spatial3d-warning', t.spatial3dWarning || '3D view defaults to opaque points for correct front/back occlusion.');
+      setText('label-z-spacing', t.zSpacing || '3D Slice Spacing');
+      setText('z-spacing-hint', t.zSpacingHint || 'Expands only the 3D display depth; raw slice Z values still drive slice selection.');
+      updateRenderModeOptionLabels();
+      updateRenderModeUI();
+      setText('slice-hint', t.sliceHint);
+      setText('label-gene-expression', t.geneExpression);
+      setText('btn-cluster-color', t.clusterColor);
+      setText('btn-expression-color', t.expressionColor);
+      setText('btn-reset-camera', t.reset);
+      document.querySelector('[data-view="spatial3d"]').textContent = t.spatial3d;
+      document.querySelector('[data-view="spatial2d"]').textContent = t.spatial2d;
+      document.querySelector('[data-view="umap2d"]').textContent = t.umap2d;
+      setText('legend-title', t.legend);
+      setText('legend-hint', t.legendHint);
+      setText('label-color-by', currentLang === 'zh' ? '着色字段' : 'Color By');
+      setText('expression-hist-title', t.expressionDistribution || 'Expression Distribution');
+      const geneSearch = document.getElementById('gene-search');
+      if (geneSearch) {
+        geneSearch.placeholder = currentLang === 'zh' ? '搜索基因，例如 Gene0000' : 'Search gene, e.g. Gene0000';
+      }
+      setupGeneSelector();
+      setupPointSizeControl();
+      setupPointStyleControls();
+      setupZSpacingControl();
+      const geneHint = document.getElementById('gene-hint');
+      if (geneHint && !geneHint.dataset.custom) geneHint.textContent = t.geneHint;
+      document.querySelector('.btn-apply') && (document.querySelector('.btn-apply').textContent = t.go);
+      updateViewLabel();
+      if (knownSlices.length) populateSliceSelector(true);
+    }
+
+    function setupPointSizeControl() {
+      const slider = document.getElementById('point-size-slider');
+      const value = document.getElementById('point-size-value');
+      if (!slider) return;
+      if (!slider.dataset.bound) {
+        slider.dataset.bound = '1';
+        slider.addEventListener('input', () => {
+          pointSize = Number(slider.value) || 2.4;
+          if (value) value.textContent = pointSize.toFixed(1);
+          applyPointSize();
+        });
+      }
+      slider.value = String(pointSize);
+      if (value) value.textContent = pointSize.toFixed(1);
+    }
+
+    function setupPointStyleControls() {
+      const shapeSelect = document.getElementById('point-shape-select');
+      const opacitySlider = document.getElementById('point-opacity-slider');
+      const opacityValue = document.getElementById('point-opacity-value');
+      const renderSelect = document.getElementById('render-mode-select');
+      if (shapeSelect && !shapeSelect.dataset.bound) {
+        shapeSelect.dataset.bound = '1';
+        shapeSelect.addEventListener('change', () => {
+          pointShape = shapeSelect.value || 'sphere';
+          applyPointStyle();
+        });
+      }
+      if (shapeSelect) shapeSelect.value = pointShape;
+      if (opacitySlider && !opacitySlider.dataset.bound) {
+        opacitySlider.dataset.bound = '1';
+        opacitySlider.addEventListener('input', () => {
+          pointOpacity = Number(opacitySlider.value) || 0.9;
+          if (opacityValue) opacityValue.textContent = pointOpacity.toFixed(2);
+          applyPointStyle();
+        });
+      }
+      if (renderSelect && !renderSelect.dataset.bound) {
+        renderSelect.dataset.bound = '1';
+        renderSelect.addEventListener('change', () => {
+          renderMode = renderSelect.value || 'auto';
+          applyPointStyle();
+          updateRenderModeUI();
+        });
+      }
+      if (renderSelect) renderSelect.value = renderMode;
+      if (opacitySlider) opacitySlider.value = String(pointOpacity);
+      if (opacityValue) opacityValue.textContent = pointOpacity.toFixed(2);
+      updateRenderModeOptionLabels();
+      updateRenderModeUI();
+    }
+
+    function setupZSpacingControl() {
+      const slider = document.getElementById('z-spacing-slider');
+      if (!slider) return;
+      if (!slider.dataset.bound) {
+        slider.dataset.bound = '1';
+        slider.addEventListener('input', () => {
+          zVisualScaleAuto = false;
+          zVisualScale = clampNumber(Number(slider.value), 1, zVisualScaleMax);
+          updateZSpacingUI();
+          applySpatialZScale(false);
+          updateAuxiliaryVisibility();
+        });
+        slider.addEventListener('change', () => {
+          if (currentView === 'spatial3d') resetCamera();
+        });
+      }
+      slider.max = String(zVisualScaleMax);
+      slider.value = String(Math.round(zVisualScale));
+      updateZSpacingUI();
+    }
+
+    function updateZSpacingUI() {
+      const slider = document.getElementById('z-spacing-slider');
+      const value = document.getElementById('z-spacing-value');
+      if (slider) {
+        slider.max = String(zVisualScaleMax);
+        slider.value = String(Math.round(zVisualScale));
+        slider.disabled = currentView !== 'spatial3d';
+      }
+      if (value) {
+        const suffix = zVisualScaleAuto ? ' auto' : '';
+        value.textContent = `${formatNum(zVisualScale)}x${suffix}`;
+      }
+    }
+
+    function updateRenderModeOptionLabels() {
+      const select = document.getElementById('render-mode-select');
+      if (!select) return;
+      const t = i18n[currentLang] || i18n.en;
+      const labels = {
+        auto: t.renderAuto || 'Auto: opaque in 3D',
+        opaque: t.renderOpaque || 'Opaque',
+        transparent: t.renderTransparent || 'Transparent / opacity slider'
+      };
+      Array.from(select.options).forEach(opt => {
+        if (labels[opt.value]) opt.textContent = labels[opt.value];
+      });
+    }
+    function updateRenderModeUI() {
+      const warning = document.getElementById('spatial3d-warning');
+      if (warning) warning.classList.toggle('show', currentView === 'spatial3d');
+      const opacitySlider = document.getElementById('point-opacity-slider');
+      const opacityValue = document.getElementById('point-opacity-value');
+      const mode = getEffectiveRenderMode();
+      if (opacitySlider) {
+        opacitySlider.disabled = mode === 'opaque';
+        opacitySlider.title = mode === 'opaque'
+          ? 'Opacity is fixed at 1.00 in opaque mode. Switch render mode to Transparent to edit it.'
+          : '';
+      }
+      if (opacityValue) {
+        opacityValue.textContent = mode === 'opaque' ? '1.00' : pointOpacity.toFixed(2);
+      }
+    }
+
+    function makePointTexture(shape) {
+      if (pointTextureCache[shape]) return pointTextureCache[shape];
+      const size = 96;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, size, size);
+      const cx = size / 2, cy = size / 2, r = size * 0.42;
+      if (shape === 'square') {
+        ctx.fillStyle = 'rgba(255,255,255,1)';
+        ctx.fillRect(size * 0.18, size * 0.18, size * 0.64, size * 0.64);
+      } else if (shape === 'diamond') {
+        ctx.fillStyle = 'rgba(255,255,255,1)';
+        ctx.beginPath();
+        ctx.moveTo(cx, size * 0.12);
+        ctx.lineTo(size * 0.88, cy);
+        ctx.lineTo(cx, size * 0.88);
+        ctx.lineTo(size * 0.12, cy);
+        ctx.closePath();
+        ctx.fill();
+      } else if (shape === 'soft') {
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0.00, 'rgba(255,255,255,1.00)');
+        g.addColorStop(0.45, 'rgba(255,255,255,0.72)');
+        g.addColorStop(1.00, 'rgba(255,255,255,0.00)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (shape === 'circle') {
+        ctx.fillStyle = 'rgba(255,255,255,1)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const g = ctx.createRadialGradient(cx - r * 0.33, cy - r * 0.38, r * 0.05, cx, cy, r);
+        g.addColorStop(0.00, 'rgba(255,255,255,1.00)');
+        g.addColorStop(0.18, 'rgba(255,255,255,0.96)');
+        g.addColorStop(0.48, 'rgba(255,255,255,0.84)');
+        g.addColorStop(0.78, 'rgba(255,255,255,0.56)');
+        g.addColorStop(1.00, 'rgba(255,255,255,0.00)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      pointTextureCache[shape] = texture;
+      return texture;
+    }
+
+    function getEffectiveRenderMode() {
+      if (renderMode !== 'auto') return renderMode;
+      return currentView === 'spatial3d' ? 'opaque' : 'transparent';
+    }
+    function applyDepthStyle() {
+      if (!points || !points.material) return;
+      const mode = getEffectiveRenderMode();
+      const mat = points.material;
+      if (mode === 'opaque') {
+        mat.transparent = false;
+        mat.opacity = 1.0;
+        mat.depthTest = true;
+        mat.depthWrite = true;
+        mat.alphaTest = pointShape === 'square' ? 0.0 : 0.45;
+      } else {
+        mat.transparent = pointOpacity < 1 || pointShape !== 'square';
+        mat.opacity = pointOpacity;
+        mat.depthTest = true;
+        mat.depthWrite = false;
+        mat.alphaTest = pointShape === 'square' ? 0.0 : (pointShape === 'soft' ? 0.01 : 0.08);
+      }
+      mat.needsUpdate = true;
+      updateRenderModeUI();
+    }
+    function applyPointStyle() {
+      if (!points || !points.material) return;
+      points.material.size = pointSize;
+      points.material.map = makePointTexture(pointShape);
+      applyDepthStyle();
+    }
+
+    function applyPointSize() {
+      applyPointStyle();
+    }
+
+    function buildSortedGenes() {
+      const genes = config?.genes || [];
+      const maxMap = new Map();
+      if (config.expression && config.chunk_info) {
+        config.chunk_info.forEach(chunk => {
+          const gi = chunk?.expression?.gene_max || null;
+          if (gi) Object.entries(gi).forEach(([g, v]) => maxMap.set(g, Math.max(maxMap.get(g) || 0, Number(v) || 0)));
+        });
+      }
+      // For chunked sparse expression, per-gene max is stored in each chunk index and may be loaded lazily.
+      // Before index files are loaded, use gene numeric order as a stable fallback; loaded indices will refresh this list.
+      sortedGenes = genes.map(g => ({ name: g, max: maxMap.get(g) || 0 }))
+        .sort((a, b) => (b.max - a.max) || a.name.localeCompare(b.name));
+    }
+
+    function refreshSortedGenesFromLoadedIndices() {
+      const genes = config?.genes || [];
+      const maxMap = new Map();
+      expressionIndices.forEach(idx => {
+        const gi = idx?.gene_index || {};
+        Object.entries(gi).forEach(([g, meta]) => maxMap.set(g, Math.max(maxMap.get(g) || 0, Number(meta?.max || 0))));
+      });
+      if (!maxMap.size) return;
+      sortedGenes = genes.map(g => ({ name: g, max: maxMap.get(g) || 0 }))
+        .sort((a, b) => (b.max - a.max) || a.name.localeCompare(b.name));
+    }
+
+    function setupGeneSelector() {
+      if (!sortedGenes.length) buildSortedGenes();
+      const search = document.getElementById('gene-search');
+      const select = document.getElementById('gene-select');
+      if (!search || !select) return;
+      if (!search.dataset.bound) {
+        search.dataset.bound = '1';
+        search.addEventListener('input', () => populateGeneSelect(search.value));
+        search.addEventListener('keydown', e => {
+          if (e.key === 'Enter') applyGeneExpression();
+          if (e.key === 'ArrowDown') { e.preventDefault(); select.focus(); if (select.options.length) select.selectedIndex = Math.max(0, select.selectedIndex); }
+        });
+        select.addEventListener('change', () => {
+          if (select.value) search.value = select.value;
+        });
+        select.addEventListener('dblclick', () => applyGeneExpression());
+      }
+      if (!search.value) search.value = sortedGenes[0]?.name || config?.genes?.[0] || 'Gene0000';
+      populateGeneSelect(search.value);
+    }
+
+    function populateGeneSelect(filter = '') {
+      const select = document.getElementById('gene-select');
+      if (!select) return;
+      const q = String(filter || '').trim().toLowerCase();
+      const items = (sortedGenes.length ? sortedGenes : (config?.genes || []).map(g => ({name:g, max:0})))
+        .filter(g => !q || g.name.toLowerCase().includes(q))
+        .slice(0, 300);
+      const selected = select.value || document.getElementById('gene-search')?.value || items[0]?.name || '';
+      select.innerHTML = items.map(g => {
+        const label = g.max > 0 ? `${g.name}  max=${g.max.toFixed(2)}` : g.name;
+        return `<option value="${String(g.name).replace(/"/g, '&quot;')}">${label}</option>`;
+      }).join('');
+      if ([...select.options].some(o => o.value === selected)) select.value = selected;
+      else if (select.options.length) select.selectedIndex = 0;
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    function updateViewLabel() {
+      const el = document.getElementById('view-label');
+      if (!el) return;
+      const t = i18n[currentLang];
+      if (currentView === 'spatial3d') el.textContent = t.spatial3d;
+      else if (currentView === 'spatial2d') el.textContent = t.spatial2d;
+      else el.textContent = t.umap2d;
+    }
+
+    async function initExpressionManifest() {
+      if (!config.expression || !config.expression.path) return;
+      try {
+        const res = await fetch(resolveDataPath(config.expression.path));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        expressionManifest = await res.json();
+        if (Array.isArray(expressionManifest.genes) && expressionManifest.genes.length) {
+          config.genes = expressionManifest.genes;
+          buildSortedGenes();
+        }
+      } catch (err) {
+        console.warn('Failed to load sparse expression manifest:', err);
+        expressionManifest = null;
+      }
+    }
+
+    function initExpressionBuffers() {
+      currentGeneExpression = rawData.map(buf => new Float32Array(Math.floor(buf.length / floatsPerCell)));
+    }
+
+    function resolveDataPath(path) {
+      if (!path) return '';
+      if (/^(https?:)?\/\//.test(path) || path.startsWith('/')) return path;
+      return dataPath(path);
+    }
+
+    async function preloadExpressionIndices() {
+      if (!config.expression || !config.chunk_info || !config.chunk_info.length) return;
+      try {
+        let done = 0;
+        await Promise.all(config.chunk_info.map(async (_, i) => {
+          await getExpressionIndex(i);
+          done++;
+          setStatus(`Preloading expression indices ${done}/${config.chunk_info.length}`, 88 + (done / Math.max(1, config.chunk_info.length)) * 10);
+        }));
+        refreshSortedGenesFromLoadedIndices();
+      } catch (err) {
+        console.warn('Failed to preload expression indices:', err);
+      }
+    }
+    async function getExpressionIndex(chunkIdx) {
+      if (expressionIndices[chunkIdx]) return expressionIndices[chunkIdx];
+      const info = (config.chunk_info && config.chunk_info[chunkIdx]) || null;
+      const idxPath = info?.expression?.index || expressionManifest?.chunks?.[chunkIdx]?.index;
+      if (!idxPath) throw new Error(`No expression index path for chunk ${chunkIdx}`);
+      const res = await fetch(resolveDataPath(idxPath));
+      if (!res.ok) throw new Error(`Failed to fetch ${idxPath}: HTTP ${res.status}`);
+      const idx = await res.json();
+      expressionIndices[chunkIdx] = idx;
+      refreshSortedGenesFromLoadedIndices();
+      populateGeneSelect(document.getElementById('gene-search')?.value || '');
+      return idx;
+    }
+
+    function parseExpressionRecords(buf, nCells, recordBytes = 8, valueDtype = 'float32') {
+      const dv = new DataView(buf);
+      const out = new Float32Array(nCells);
+      const step = Number(recordBytes) || 8;
+      for (let o = 0; o + step <= dv.byteLength; o += step) {
+        const cellId = dv.getUint32(o, true);
+        if (cellId >= nCells) continue;
+        if (valueDtype === 'uint8' || step === 5) out[cellId] = dv.getUint8(o + 4);
+        else if (valueDtype === 'uint16' || step === 6) out[cellId] = dv.getUint16(o + 4, true);
+        else out[cellId] = dv.getFloat32(o + 4, true);
+      }
+      return out;
+    }
+
+    async function loadSparseGeneExpression(gene) {
+      if (!config.expression || !config.chunk_info || !config.chunk_info.length) return false;
+      const token = ++expressionLoadToken;
+      const loading = document.getElementById('loading');
+      loading.style.display = 'block';
+      loading.style.color = '#2563eb';
+      loading.textContent = `Loading expression for ${gene}...`;
+      setStatus(`Loading expression for ${gene} 0/${rawData.length}`, 0);
+      const buffers = new Array(rawData.length);
+      let globalMax = 0;
+      let loadedChunks = 0;
+      try {
+        await Promise.all(rawData.map(async (buf, chunkIdx) => {
+          const nCells = Math.floor(buf.length / floatsPerCell);
+          const idx = await getExpressionIndex(chunkIdx);
+          const meta = idx.gene_index && idx.gene_index[gene];
+          const values = new Float32Array(nCells);
+          if (meta && meta.count > 0) {
+            const info = config.chunk_info[chunkIdx];
+            const exprPath = info?.expression?.file || idx.expression_file || expressionManifest?.chunks?.[chunkIdx]?.file;
+            const recordBytes = Number(meta.record_bytes || idx.record_bytes || info?.expression?.record_bytes || config.expression?.record_bytes || 8);
+            const valueDtype = String(meta.value_dtype || idx.value_dtype || info?.expression?.value_dtype || config.expression?.value_dtype || 'float32');
+            const requestedBytes = Number(meta.count) * recordBytes;
+            const start = Number(meta.offset_records) * recordBytes;
+            const end = start + requestedBytes - 1;
+            const res = await fetch(resolveDataPath(exprPath), { headers: { Range: `bytes=${start}-${end}` } });
+            if (!res.ok && res.status !== 206) throw new Error(`Failed to fetch ${exprPath}: HTTP ${res.status}`);
+            let exprBuf = await res.arrayBuffer();
+            // Preferred path: server returns HTTP 206 for Range. Fallback: if a simple server ignores Range
+            // and returns HTTP 200 with the whole file, slice the requested byte segment in browser memory.
+            if (res.status === 200 && exprBuf.byteLength > requestedBytes) {
+              exprBuf = exprBuf.slice(start, end + 1);
+            }
+            const arr = parseExpressionRecords(exprBuf, nCells, recordBytes, valueDtype);
+            values.set(arr);
+            globalMax = Math.max(globalMax, Number(meta.max || 0));
+          }
+          buffers[chunkIdx] = values;
+          loadedChunks++;
+          const pct = (loadedChunks / Math.max(1, rawData.length)) * 100;
+          loading.textContent = `Loading expression for ${gene}... ${loadedChunks}/${rawData.length}`;
+          setStatus(`Loading expression for ${gene} ${loadedChunks}/${rawData.length}`, pct);
+        }));
+        if (token !== expressionLoadToken) return false;
+        currentGeneExpression = buffers;
+        currentGeneName = gene;
+        geneMax = Math.max(globalMax, 1);
+        const slider = document.getElementById('gene-max-slider');
+        slider.max = geneMax;
+        slider.value = geneMax;
+        loading.style.display = 'none';
+        setStatus(`Expression loaded: ${gene}`, 100);
+        return true;
+      } catch (err) {
+        console.error(err);
+        loading.style.display = 'none';
+        setStatus('Expression loading error: ' + err.message, 100, true);
+        return false;
+      }
+    }
+
+    function getDatasetTitle() {
+      return String(
+        config?.dataset_name ||
+        config?.dataset_id ||
+        config?.dataset ||
+        config?.name ||
+        config?.title ||
+        config?.project_name ||
+        config?.sample_name ||
+        'Dataset'
+      );
+    }
+
+    function updateDatasetTitle() {
+      const el = document.getElementById('dataset-title');
+      if (!el) return;
+      const title = getDatasetTitle();
+      const suffix = dataDir && dataDir !== 'data' ? ` (${dataDir})` : '';
+      el.textContent = title;
+      el.title = title + suffix;
+    }
+
+    function normalizeConfig() {
+      if (!config.cluster_fields || !config.cluster_fields.length) {
+        config.cluster_fields = [config.default_cluster_field || 'cluster'];
+      }
+      config.default_cluster_field = config.default_cluster_field || config.cluster_fields[0] || 'cluster';
+      if (!config.cluster_sets) config.cluster_sets = {};
+      if (!config.clusters || !config.clusters.length) {
+        config.clusters = Array.from({length: 10}, (_, i) => ({ name: `Cluster_${i}`, color: fallbackColors[i % fallbackColors.length] }));
+      }
+      if (!config.cluster_sets[config.default_cluster_field]) {
+        config.cluster_sets[config.default_cluster_field] = { name: config.default_cluster_field, column_index: 5, clusters: config.clusters };
+      }
+      config.cluster_fields.forEach((field, fi) => {
+        if (!config.cluster_sets[field]) config.cluster_sets[field] = { name: field, column_index: 5 + fi, clusters: config.clusters };
+        config.cluster_sets[field].clusters = (config.cluster_sets[field].clusters || config.clusters).map((c, i) => ({
+          idx: c.idx ?? i,
+          name: c.name || `Cluster_${i}`,
+          color: c.color || fallbackColors[i % fallbackColors.length],
+          cell_count: c.cell_count || 0
+        }));
+        config.cluster_sets[field].column_index = Number(config.cluster_sets[field].column_index ?? (5 + fi));
+      });
+      activeClusterField = config.default_cluster_field;
+      applyActiveClusterSet(activeClusterField, false);
+      config.chunks = config.chunks || [];
+    }
+
+    function inferDataFormat() {
+      if (config.floats_per_cell) {
+        floatsPerCell = Number(config.floats_per_cell);
+      } else if (config.genes && config.genes.length) {
+        floatsPerCell = 7;
+      } else {
+        floatsPerCell = 6;
+      }
+      geneExpressionColumnIndex = config.gene_expression_column_index !== undefined ? Number(config.gene_expression_column_index) : null;
+      hasGeneColumn = geneExpressionColumnIndex !== null || (floatsPerCell >= 7 && !(config.cluster_fields && config.cluster_fields.length > 1));
+      if (geneExpressionColumnIndex === null && hasGeneColumn) geneExpressionColumnIndex = 6;
+    }
+
+    function applyActiveClusterSet(field, clearHidden=true) {
+      activeClusterField = field || config.default_cluster_field || config.cluster_fields?.[0] || 'cluster';
+      const set = config.cluster_sets?.[activeClusterField] || config.cluster_sets?.[config.default_cluster_field] || { column_index: 5, clusters: config.clusters || [] };
+      clusterFieldColumn = Number(set.column_index ?? 5);
+      config.clusters = (set.clusters || []).map((c, i) => ({
+        idx: c.idx ?? i,
+        name: c.name || `Cluster_${i}`,
+        color: c.color || fallbackColors[i % fallbackColors.length],
+        cell_count: c.cell_count || 0
+      }));
+      if (clearHidden) hiddenClusters.clear();
+      document.getElementById('cluster-count') && (document.getElementById('cluster-count').textContent = config.clusters.length);
+    }
+
+    const expressionPalettes = {
+      blueYellowRed: ['#1d4ed8', '#0ea5e9', '#facc15', '#ef4444'],
+      viridis: ['#440154', '#31688e', '#35b779', '#fde725'],
+      magma: ['#000004', '#51127c', '#b73779', '#fc8961', '#fcfdbf'],
+      plasma: ['#0d0887', '#7e03a8', '#cc4778', '#f89540', '#f0f921'],
+      greenPurple: ['#14532d', '#22c55e', '#f8fafc', '#a855f7', '#581c87'],
+      grayRed: ['#e5e7eb', '#fca5a5', '#ef4444', '#7f1d1d']
+    };
+    const recommendedClusterColors = [
+      '#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf',
+      '#2563eb','#dc2626','#16a34a','#ca8a04','#9333ea','#db2777','#0891b2','#ea580c','#4f46e5','#65a30d',
+      '#0f766e','#be123c','#7c3aed','#a16207','#0369a1','#15803d','#b91c1c','#c026d3','#475569','#f97316',
+      '#38bdf8','#fb7185','#4ade80','#facc15','#c084fc','#f472b6','#2dd4bf','#fdba74','#818cf8','#a3e635',
+      '#0284c7','#e11d48','#059669','#d97706','#6d28d9','#9f1239','#0e7490','#92400e','#4338ca','#3f6212'
+    ];
+    function hexToRgb01(hex) {
+      hex = String(hex || '#ffffff').replace('#', '');
+      return [parseInt(hex.slice(0,2),16)/255, parseInt(hex.slice(2,4),16)/255, parseInt(hex.slice(4,6),16)/255];
+    }
+    function rgb01ToCss(rgb) {
+      return `rgb(${Math.round(rgb[0]*255)}, ${Math.round(rgb[1]*255)}, ${Math.round(rgb[2]*255)})`;
+    }
+    function interpolatePalette(name, t) {
+      const stops = (expressionPalettes[name] || expressionPalettes.blueYellowRed).map(hexToRgb01);
+      t = Math.max(0, Math.min(1, t));
+      const x = t * (stops.length - 1);
+      const i = Math.min(stops.length - 2, Math.floor(x));
+      const f = x - i;
+      return [0,1,2].map(k => stops[i][k] * (1 - f) + stops[i + 1][k] * f);
+    }
+    function paletteCss(name) {
+      const stops = expressionPalettes[name] || expressionPalettes.blueYellowRed;
+      return `linear-gradient(90deg, ${stops.join(', ')})`;
+    }
+    function setExpressionPalette(name) {
+      expressionPalette = expressionPalettes[name] ? name : 'blueYellowRed';
+      const scale = document.getElementById('gene-scale');
+      if (scale) scale.style.background = paletteCss(expressionPalette);
+      if (colorMode === 'gene') updateMesh(false);
+    }
+    function autoScaleGeneExpression() {
+      let n = 0, sum = 0, sumSq = 0, maxVal = 0;
+      currentGeneExpression.forEach(arr => {
+        if (!arr) return;
+        for (let i = 0; i < arr.length; i++) {
+          const v = arr[i] || 0;
+          if (v <= 0 || !Number.isFinite(v)) continue;
+          n++; sum += v; sumSq += v * v; if (v > maxVal) maxVal = v;
+        }
+      });
+      if (!n) { geneScaleMin = 0; geneMax = 1; return {mean:0, sd:0, n:0, max:0}; }
+      const mean = sum / n;
+      const variance = Math.max(0, sumSq / n - mean * mean);
+      const sd = Math.sqrt(variance);
+      geneScaleMin = Math.max(0, mean - 3 * sd);
+      geneMax = Math.max(geneScaleMin + 0.0001, Math.min(maxVal, mean + 3 * sd));
+      const slider = document.getElementById('gene-max-slider');
+      if (slider) { slider.max = Math.max(maxVal, geneMax, 1); slider.value = geneMax; }
+      return {mean, sd, n, max:maxVal};
+    }
+    function expressionToT(v) {
+      return Math.max(0, Math.min(1, (v - geneScaleMin) / Math.max(geneMax - geneScaleMin, 0.0001)));
+    }
+    function initClusterColorPopover() {
+      const board = document.getElementById('color-board-255');
+      const rec = document.getElementById('recommended-colors');
+      if (!board || !rec || board.dataset.ready) return;
+      for (let i = 0; i < 255; i++) {
+        const hue = (i % 17) * (360 / 17);
+        const light = 30 + Math.floor(i / 17) * 4;
+        const hex = hslToHex(hue, 72, light);
+        board.appendChild(makeColorSwatch(hex, false));
+      }
+      recommendedClusterColors.forEach(hex => rec.appendChild(makeColorSwatch(hex, true)));
+      board.dataset.ready = '1';
+      document.addEventListener('click', e => {
+        const pop = document.getElementById('cluster-color-popover');
+        if (!pop || pop.style.display === 'none') return;
+        if (!pop.contains(e.target) && !e.target.classList.contains('legend-dot')) closeClusterColorPopover();
+      });
+    }
+    function makeColorSwatch(hex, recommended) {
+      const el = document.createElement('span');
+      el.className = 'color-swatch' + (recommended ? ' recommended' : '');
+      el.style.background = hex;
+      el.title = hex;
+      el.addEventListener('click', e => { e.stopPropagation(); applyClusterColor(hex); });
+      return el;
+    }
+    function hslToHex(h, s, l) {
+      s /= 100; l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return '#' + [f(0), f(8), f(4)].map(x => Math.round(255 * x).toString(16).padStart(2, '0')).join('');
+    }
+    function openClusterColorPopover(idx, dot) {
+      initClusterColorPopover();
+      activeColorClusterIdx = idx;
+      const pop = document.getElementById('cluster-color-popover');
+      if (!pop || !dot) return;
+      const r = dot.getBoundingClientRect();
+      pop.style.display = 'block';
+      pop.style.left = Math.max(8, r.left - 260) + 'px';
+      pop.style.top = Math.max(8, Math.min(window.innerHeight - 340, r.top - 16)) + 'px';
+    }
+    function closeClusterColorPopover() {
+      const pop = document.getElementById('cluster-color-popover');
+      if (pop) pop.style.display = 'none';
+      activeColorClusterIdx = null;
+    }
+    function applyClusterColor(hex) {
+      if (activeColorClusterIdx === null || !config?.clusters?.[activeColorClusterIdx]) return;
+      config.clusters[activeColorClusterIdx].color = hex;
+      const activeSet = config.cluster_sets?.[activeClusterField];
+      if (activeSet?.clusters?.[activeColorClusterIdx]) activeSet.clusters[activeColorClusterIdx].color = hex;
+      document.querySelectorAll(`.legend-dot[data-cluster-idx="${activeColorClusterIdx}"]`).forEach(d => d.style.background = hex);
+      updateMesh(false);
+    }
+
+    function renderLegend() {
+      const legend = document.getElementById('legend-container');
+      if (!legend) return;
+      legend.innerHTML = '';
+      config.clusters.forEach((c, idx) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        if (hiddenClusters.has(idx)) item.classList.add('dimmed');
+        item.dataset.idx = idx;
+        item.innerHTML = `<span class="legend-dot" data-cluster-idx="${idx}" style="background:${c.color}"></span><span>${c.name}</span><span class="legend-count" id="cluster-count-${idx}"></span>`;
+        item.querySelector('.legend-dot')?.addEventListener('click', e => {
+          e.stopPropagation();
+          openClusterColorPopover(idx, e.currentTarget);
+        });
+        let clickTimer = null;
+        item.addEventListener('click', () => {
+          if (clickTimer) clearTimeout(clickTimer);
+          clickTimer = setTimeout(() => {
+            toggleCluster(idx, item);
+            clickTimer = null;
+          }, 220);
+        });
+        item.addEventListener('dblclick', () => {
+          if (clickTimer) {
+            clearTimeout(clickTimer);
+            clickTimer = null;
+          }
+          showOnlyCluster(idx);
+        });
+        legend.appendChild(item);
+      });
+    }
+    function setupColorBySelector() {
+      const sel = document.getElementById('color-by-select');
+      if (!sel) return;
+      const fields = config.cluster_fields && config.cluster_fields.length ? config.cluster_fields : [activeClusterField];
+      sel.innerHTML = '';
+      fields.forEach(field => {
+        const opt = document.createElement('option');
+        opt.value = field;
+        opt.textContent = field;
+        sel.appendChild(opt);
+      });
+      sel.value = activeClusterField;
+      sel.onchange = () => {
+        applyActiveClusterSet(sel.value, true);
+        renderLegend();
+        updateMesh(false);
+      };
+      const row = document.getElementById('color-by-row');
+      if (row) row.style.display = fields.length > 1 ? 'flex' : 'none';
+    }
+    function initUIFromConfig() {
+      updateDatasetTitle();
+      applyActiveClusterSet(activeClusterField || config.default_cluster_field, false);
+      setupColorBySelector();
+      renderLegend();
+
+      document.querySelectorAll('.btn-view[data-view]').forEach(btn => {
+        btn.onclick = () => switchView(btn.dataset.view);
+      });
+
+      document.getElementById('slice-selector').onchange = e => {
+        if (currentView === 'spatial2d' && e.target.value === 'all') {
+          activeSlice = knownSlices[0];
+          e.target.value = String(activeSlice);
+        } else {
+          activeSlice = e.target.value === 'all' ? 'all' : Number(e.target.value);
+        }
+        syncSliceSlider();
+        updateSliceControlAvailability();
+        if (currentView === 'spatial3d' && activeSlice !== 'all') switchView('spatial2d');
+        else updateMesh(true);
+      };
+
+      document.getElementById('slice-slider').oninput = e => {
+        let idx = Number(e.target.value);
+        if (currentView === 'spatial2d' && idx === 0) idx = 1;
+        activeSlice = idx === 0 ? 'all' : knownSlices[idx - 1];
+        document.getElementById('slice-selector').value = activeSlice === 'all' ? 'all' : String(activeSlice);
+        syncSliceSlider();
+        updateSliceControlAvailability();
+        if (currentView === 'spatial3d' && activeSlice !== 'all') switchView('spatial2d');
+        else updateMesh(true);
+      };
+      setLanguage(currentLang);
+    }
+
+    function detectSlicesFromData() {
+      const zSet = new Set();
+      rawData.forEach(buf => {
+        const n = Math.floor(buf.length / floatsPerCell);
+        const stride = Math.max(1, Math.floor(n / 200000));
+        for (let i = 0; i < n; i += stride) {
+          zSet.add(Number(buf[i * floatsPerCell + 2].toFixed(3)));
+        }
+      });
+      const configuredSlices = Array.isArray(config.slice_values)
+        ? config.slice_values.map(Number).filter(Number.isFinite)
+        : [];
+      knownSlices = configuredSlices.length
+        ? Array.from(new Set(configuredSlices.map(v => Number(v.toFixed(3))))).sort((a, b) => a - b)
+        : Array.from(zSet).sort((a, b) => a - b);
+      if (!knownSlices.length) knownSlices = Array.from({length: config.slices || 10}, (_, i) => (i + 1) * 10);
+    }
+
+    function populateSliceSelector(preserveValue = false) {
+      const sel = document.getElementById('slice-selector');
+      const oldValue = preserveValue ? sel.value : 'all';
+      const t = i18n[currentLang];
+      sel.innerHTML = `<option value="all">${currentLang === 'zh' ? t.allSlices : t.allSlicesLong}</option>`;
+      const sliceLabels = Array.isArray(config.slice_labels)
+        ? config.slice_labels
+        : (Array.isArray(config.z_order) ? config.z_order : []);
+      knownSlices.forEach((z, i) => {
+        const opt = document.createElement('option');
+        opt.value = z;
+        const label = sliceLabels[i] || '';
+        opt.textContent = label
+          ? (currentLang === 'zh' ? `${label}???=${i + 1}?Z=${formatNum(z)}?` : `${label} (slice ${i + 1}, Z=${formatNum(z)})`)
+          : (currentLang === 'zh' ? `${t.chip}${i + 1}???=${formatNum(z)}?` : `${t.chip} ${i + 1} / ${t.slice} ${i + 1} (Z=${formatNum(z)})`);
+        sel.appendChild(opt);
+      });
+      sel.value = oldValue;
+      const slider = document.getElementById('slice-slider');
+      slider.min = 0;
+      slider.max = knownSlices.length;
+      if (!preserveValue) slider.value = 0;
+      else syncSliceSlider();
+      updateSliceControlAvailability();
+    }
+
+    function updateSliceControlAvailability() {
+      const sel = document.getElementById('slice-selector');
+      const slider = document.getElementById('slice-slider');
+      const allOpt = sel?.querySelector('option[value="all"]');
+      const blockAll = currentView === 'spatial2d';
+      if (allOpt) allOpt.disabled = blockAll;
+      if (slider) slider.min = blockAll ? 1 : 0;
+      if (blockAll && activeSlice === 'all') {
+        activeSlice = knownSlices[0];
+        if (sel) sel.value = String(activeSlice);
+        if (slider) slider.value = 1;
+      }
+    }
+
+    function syncSliceSlider() {
+      const slider = document.getElementById('slice-slider');
+      if (activeSlice === 'all') slider.value = currentView === 'spatial2d' ? 1 : 0;
+      else slider.value = Math.max(1, knownSlices.findIndex(z => nearlyEqual(z, activeSlice)) + 1);
+      updateSliceControlAvailability();
+    }
+
+    function calculateGeneRange() {
+      let maxVal = 0;
+      if (config.expression && expressionManifest) {
+        maxVal = 1;
+      } else if (hasGeneColumn) {
+        rawData.forEach(buf => {
+          const n = Math.floor(buf.length / floatsPerCell);
+          const stride = Math.max(1, Math.floor(n / 300000));
+          for (let i = 0; i < n; i += stride) maxVal = Math.max(maxVal, buf[i * floatsPerCell + geneExpressionColumnIndex] || 0);
+        });
+      } else {
+        maxVal = 10;
+      }
+      geneScaleMin = 0;
+      geneMax = Math.max(maxVal, 1);
+      const slider = document.getElementById('gene-max-slider');
+      slider.max = geneMax;
+      slider.value = geneMax;
+      slider.disabled = true;
+      slider.oninput = e => {
+        geneMax = Math.max(Number(e.target.value), 0.0001);
+        if (colorMode === 'gene') updateMesh(false);
+      };
+    }
+
+    function initScene() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(canvasTheme === 'dark' ? '#000000' : '#ffffff');
+
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000000);
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: false });
+      renderer.setClearColor(canvasTheme === 'dark' ? 0x000000 : 0xffffff, 1);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.autoClear = true;
+      container.innerHTML = '';
+      container.appendChild(renderer.domElement);
+
+      // TrackballControls allows free roll-over rotation without OrbitControls' polar-angle clamp.
+      controls = new THREE.TrackballControls(camera, renderer.domElement);
+      controls.rotateSpeed = 3.2;
+      controls.zoomSpeed = 1.2;
+      controls.panSpeed = 0.8;
+      controls.noRotate = false;
+      controls.noZoom = false;
+      controls.noPan = false;
+      controls.staticMoving = false;
+      controls.dynamicDampingFactor = 0.12;
+
+      gridXY = makeSceneGrid(1200, 24, 0.62);
+      scene.add(gridXY);
+
+      gridXZ = makeSceneGrid(1200, 24, 0.36);
+      gridXZ.rotation.x = Math.PI / 2;
+      scene.add(gridXZ);
+
+      axesHelper = new THREE.AxesHelper(80);
+      axesHelper.visible = false;
+      scene.add(axesHelper);
+
+      initHudAxes();
+      window.addEventListener('resize', onResize);
+    }
+
+    function initHudAxes() {
+      hudScene = new THREE.Scene();
+      hudCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      hudCamera.position.set(0, 0, 6);
+      hudCamera.lookAt(0, 0, 0);
+      hudAxes = new THREE.AxesHelper(2.25);
+      hudScene.add(hudAxes);
+      hudRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      hudRenderer.setClearColor(0x000000, 0);
+      hudRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      hudRenderer.domElement.style.position = 'absolute';
+      hudRenderer.domElement.style.zIndex = '91';
+      hudRenderer.domElement.style.pointerEvents = 'none';
+      hudRenderer.domElement.style.display = 'none';
+      document.body.appendChild(hudRenderer.domElement);
+    }
+
+    function makeSceneGrid(size, divisions, opacity) {
+      const grid = new THREE.GridHelper(size, divisions, 0xcbd5e1, 0xe2e8f0);
+      grid.material.transparent = true;
+      grid.material.opacity = opacity;
+      grid.material.depthWrite = false;
+      return grid;
+    }
+
+    function ensureAdaptiveGrids(sizeVec) {
+      const maxSpan = Math.max(sizeVec.x || 0, sizeVec.y || 0, sizeVec.z || 0, 1);
+      const targetSize = niceGridSize(maxSpan * 1.12);
+      const targetDivisions = niceGridDivisions(targetSize);
+      if (Math.abs(targetSize - gridSizeCurrent) < 1e-6 && targetDivisions === gridDivisionsCurrent) return;
+      const xyVisible = gridXY?.visible ?? true;
+      const xzVisible = gridXZ?.visible ?? true;
+      const xyRotation = gridXY?.rotation?.clone();
+      const xzRotation = gridXZ?.rotation?.clone();
+      const xyPos = gridXY?.position?.clone();
+      const xzPos = gridXZ?.position?.clone();
+      if (gridXY) scene.remove(gridXY);
+      if (gridXZ) scene.remove(gridXZ);
+      gridXY?.geometry?.dispose?.();
+      gridXY?.material?.dispose?.();
+      gridXZ?.geometry?.dispose?.();
+      gridXZ?.material?.dispose?.();
+      gridXY = makeSceneGrid(targetSize, targetDivisions, 0.62);
+      gridXZ = makeSceneGrid(targetSize, targetDivisions, 0.36);
+      if (xyRotation) gridXY.rotation.copy(xyRotation);
+      if (xzRotation) gridXZ.rotation.copy(xzRotation);
+      if (xyPos) gridXY.position.copy(xyPos);
+      if (xzPos) gridXZ.position.copy(xzPos);
+      gridXY.visible = xyVisible;
+      gridXZ.visible = xzVisible;
+      scene.add(gridXY);
+      scene.add(gridXZ);
+      gridSizeCurrent = targetSize;
+      gridDivisionsCurrent = targetDivisions;
+    }
+
+    function niceGridSize(value) {
+      if (!Number.isFinite(value) || value <= 0) return 1200;
+      const exp = Math.floor(Math.log10(value));
+      const base = Math.pow(10, exp);
+      const frac = value / base;
+      const nice = frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 5 ? 5 : 10;
+      return nice * base;
+    }
+
+    function niceGridDivisions(size) {
+      if (!Number.isFinite(size) || size <= 0) return 24;
+      const targetStep = niceGridSize(size / 28);
+      return Math.max(8, Math.min(80, Math.round(size / Math.max(targetStep, 1))));
+    }
+
+    function updateMesh(resetCameraAfterUpdate) {
+      const useSlice = currentView === 'spatial2d' || activeSlice !== 'all';
+      const targetZ = useSlice && activeSlice !== 'all' ? Number(activeSlice) : null;
+      const tolerance = estimateSliceTolerance();
+      const useUmap = currentView === 'umap2d';
+      const positions = [];
+      const colors = [];
+      const clusterCounts = new Array(config.clusters.length).fill(0);
+      const histBins = new Array(40).fill(0);
+      let visible = 0;
+      let exprVisibleMax = 0;
+      let exprVisibleSum = 0;
+      let exprNonzero = 0;
+
+      rawData.forEach((buf, chunkIdx) => {
+        const n = Math.floor(buf.length / floatsPerCell);
+        for (let i = 0; i < n; i++) {
+          const o = i * floatsPerCell;
+          const z = buf[o + 2];
+          const rawCluster = buf[o + clusterFieldColumn];
+          const cidx = Math.max(0, Math.min(config.clusters.length - 1, Math.round(rawCluster || 0)));
+          if (hiddenClusters.has(cidx)) continue;
+          if (targetZ !== null && Math.abs(z - targetZ) > tolerance) continue;
+
+          if (useUmap) positions.push(buf[o + 3], buf[o + 4], 0);
+          else if (currentView === 'spatial2d') positions.push(buf[o], buf[o + 1], 0);
+          else positions.push(buf[o], buf[o + 1], visualZ(z));
+
+          const geneValue = getGeneValue(buf, o, cidx, chunkIdx, i);
+          pushColor(colors, cidx, geneValue);
+          if (colorMode === 'gene') {
+            exprVisibleMax = Math.max(exprVisibleMax, geneValue);
+            exprVisibleSum += geneValue;
+            if (geneValue > 0) exprNonzero++;
+            const hidx = Math.min(histBins.length - 1, Math.max(0, Math.floor(expressionToT(geneValue) * histBins.length)));
+            histBins[hidx]++;
+          }
+          clusterCounts[cidx]++;
+          visible++;
+        }
+      });
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+      geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+      geom.computeBoundingSphere();
+
+      if (!points) {
+        const opaque3d = getEffectiveRenderMode() === 'opaque';
+        const mat = new THREE.PointsMaterial({
+          size: pointSize,
+          vertexColors: true,
+          sizeAttenuation: true,
+          transparent: !opaque3d && (pointOpacity < 1 || pointShape !== 'square'),
+          opacity: opaque3d ? 1.0 : pointOpacity,
+          depthTest: true,
+          depthWrite: opaque3d,
+          map: makePointTexture(pointShape),
+          alphaTest: opaque3d && pointShape !== 'square' ? 0.45 : (pointShape === 'square' ? 0.0 : 0.08)
+        });
+        points = new THREE.Points(geom, mat);
+        scene.add(points);
+      } else {
+        points.geometry.dispose();
+        points.geometry = geom;
+      }
+
+      document.getElementById('cell-count').textContent = visible.toLocaleString();
+      clusterCounts.forEach((n, i) => {
+        const el = document.getElementById(`cluster-count-${i}`);
+        if (el) el.textContent = n ? n.toLocaleString() : '';
+      });
+
+      applyPointSize();
+      applyDepthStyle();
+      updateZSpacingUI();
+      updateAuxiliaryVisibility();
+      updateExpressionHistogram(histBins, visible, exprVisibleMax, exprVisibleSum, exprNonzero);
+      layoutRightPanels();
+      if (resetCameraAfterUpdate) resetCamera();
+    }
+
+    function pushColor(colors, cidx, geneValue) {
+      if (colorMode === 'gene') {
+        const rgb = interpolatePalette(expressionPalette, expressionToT(geneValue));
+        colors.push(rgb[0], rgb[1], rgb[2]);
+      } else {
+        const hex = config.clusters[cidx]?.color || '#ffffff';
+        colors.push(parseInt(hex.slice(1,3),16)/255, parseInt(hex.slice(3,5),16)/255, parseInt(hex.slice(5,7),16)/255);
+      }
+    }
+
+    function getGeneValue(buf, offset, cidx, chunkIdx, localCellIdx) {
+      if (colorMode === 'gene' && currentGeneExpression[chunkIdx]) return currentGeneExpression[chunkIdx][localCellIdx] || 0;
+      if (hasGeneColumn && geneExpressionColumnIndex !== null) return buf[offset + geneExpressionColumnIndex] || 0;
+      const x = buf[offset], y = buf[offset + 1];
+      return ((Math.sin(x * 0.015 + cidx) + Math.cos(y * 0.013 - cidx)) * 0.5 + 1) * (1 + (cidx % 5));
+    }
+
+    function switchView(mode) {
+      currentView = mode;
+      document.querySelectorAll('.btn-view[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === mode));
+      updateViewLabel();
+      applyDepthStyle();
+      updateRenderModeUI();
+
+      // Spatial 3D 默认展示全部切片；不沿用 Spatial 2D 中选择的单张切片。
+      if (mode === 'spatial3d') {
+        activeSlice = 'all';
+        document.getElementById('slice-selector').value = 'all';
+        syncSliceSlider();
+      }
+
+      // Spatial 2D 是单张切片的俯视图：如果当前为全部切片，则自动选择第一张切片。
+      if (mode === 'spatial2d' && activeSlice === 'all') {
+        activeSlice = knownSlices[0];
+        document.getElementById('slice-selector').value = String(activeSlice);
+        syncSliceSlider();
+      }
+      updateSliceControlAvailability();
+      updateMesh(true);
+    }
+
+    function resetCamera() {
+      if (!points || !camera || !controls) return;
+      const box = new THREE.Box3().setFromObject(points);
+      const center = box.getCenter(new THREE.Vector3());
+      const sizeVec = box.getSize(new THREE.Vector3());
+      const size = Math.max(sizeVec.x, sizeVec.y, sizeVec.z, 1);
+      controls.target.copy(center);
+
+      if (currentView === 'spatial3d') {
+        camera.position.set(center.x - size * 0.65, center.y - size * 0.85, center.z + size * 0.72);
+      } else {
+        camera.position.set(center.x, center.y, center.z + size * 1.45);
+      }
+      camera.near = Math.max(0.01, size / 10000);
+      camera.far = Math.max(1000, size * 100);
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
+
+    function updateAuxiliaryVisibility() {
+      if (!gridXY || !gridXZ) return;
+      const center = new THREE.Vector3();
+      const sizeVec = new THREE.Vector3(1200, 1200, 1200);
+      if (points && points.geometry) {
+        points.geometry.computeBoundingBox();
+        points.geometry.boundingBox?.getCenter(center);
+        points.geometry.boundingBox?.getSize(sizeVec);
+      }
+      ensureAdaptiveGrids(sizeVec);
+      // Three.js GridHelper 默认位于 XZ 平面；旋转到 XY 平面后作为二维视图网格。
+      // 主场景中心 XYZ 坐标轴保持隐藏，只保留右下角 HUD 方向轴。
+      gridXY.position.set(center.x, center.y, center.z);
+      gridXZ.position.set(center.x, center.y, center.z);
+      if (axesHelper) {
+        axesHelper.position.set(center.x, center.y, center.z);
+        axesHelper.visible = false;
+      }
+      if (currentView === 'spatial3d') {
+        gridXY.visible = gridVisible;
+        gridXZ.visible = gridVisible;
+        gridXY.rotation.set(0, 0, 0);          // XZ 面
+        gridXZ.rotation.set(Math.PI / 2, 0, 0); // XY 面
+      } else {
+        gridXY.visible = gridVisible;
+        gridXZ.visible = false;
+        gridXY.rotation.set(Math.PI / 2, 0, 0); // Spatial 2D / UMAP 2D 均使用 XY 面
+      }
+      const gridBtn = document.getElementById('btn-grid-toggle');
+      if (gridBtn) {
+        gridBtn.classList.toggle('active', gridVisible);
+        gridBtn.textContent = gridVisible ? 'Grid On' : 'Grid Off';
+      }
+      const showHud = currentView === 'spatial3d';
+      document.getElementById('hud-label').style.display = showHud ? 'flex' : 'none';
+      if (hudRenderer) hudRenderer.domElement.style.display = showHud ? 'block' : 'none';
+    }
+    function toggleGrid() {
+      gridVisible = !gridVisible;
+      updateAuxiliaryVisibility();
+    }
+    function toggleBanner(show) {
+      const banner = document.getElementById('top-banner');
+      const restore = document.getElementById('banner-restore-btn');
+      if (!banner || !restore) return;
+      const shouldShow = show !== undefined ? !!show : banner.classList.contains('banner-hidden');
+      banner.classList.toggle('banner-hidden', !shouldShow);
+      restore.classList.toggle('show', !shouldShow);
+    }
+    function toggleUiCollapse() {
+      const panel = document.getElementById('ui-panel');
+      const btn = document.getElementById('ui-collapse-btn');
+      if (!panel || !btn) return;
+      panel.classList.toggle('collapsed');
+      btn.textContent = panel.classList.contains('collapsed') ? '+' : '−';
+    }
+
+    function toggleLegendCollapse() {
+      const panel = document.getElementById('legend-panel');
+      const btn = document.getElementById('legend-collapse-btn');
+      if (!panel || !btn) return;
+      panel.classList.toggle('collapsed');
+      btn.textContent = panel.classList.contains('collapsed') ? '+' : '−';
+      layoutRightPanels();
+    }
+
+    function layoutRightPanels() {
+      const legend = document.getElementById('legend-panel');
+      const legendContainer = document.getElementById('legend-container');
+      const hist = document.getElementById('expression-hist-panel');
+      if (!legend || !legendContainer || !hist) return;
+      const showHist = colorMode === 'gene';
+      hist.style.display = showHist ? 'block' : 'none';
+      const top = 96;
+      const rightBottom = 20;
+      const gap = 12;
+      const histHeight = showHist ? Math.max(190, hist.offsetHeight || 190) : 0;
+      const availableForLegend = window.innerHeight - top - rightBottom - (showHist ? histHeight + gap : 0);
+      const naturalLegendHeight = legend.scrollHeight || 260;
+      const needCompact = showHist && naturalLegendHeight > availableForLegend;
+      legend.classList.toggle('compact', needCompact);
+      const isCollapsed = legend.classList.contains('collapsed');
+      const legendHeight = isCollapsed ? 58 : Math.max(118, availableForLegend);
+      legend.style.height = isCollapsed ? '58px' : '';
+      legend.style.maxHeight = legendHeight + 'px';
+      const headerAndHint = isCollapsed ? 58 : (needCompact ? 58 : 104);
+      legendContainer.style.maxHeight = Math.max(42, legendHeight - headerAndHint) + 'px';
+      legendContainer.style.overflowY = needCompact ? 'auto' : 'visible';
+      const rect = legend.getBoundingClientRect();
+      hist.style.top = Math.min(rect.bottom + gap, window.innerHeight - histHeight - rightBottom) + 'px';
+    }
+
+    function updateExpressionHistogram(bins, visible, visibleMax, visibleSum, nonzero) {
+      const panel = document.getElementById('expression-hist-panel');
+      const canvas = document.getElementById('expression-hist-canvas');
+      const meta = document.getElementById('expression-hist-meta');
+      if (!panel || !canvas || !meta) return;
+      if (colorMode !== 'gene') {
+        panel.style.display = 'none';
+        return;
+      }
+      panel.style.display = 'block';
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      const padL = 26, padR = 8, padT = 10, padB = 22;
+      const plotW = w - padL - padR, plotH = h - padT - padB;
+      const maxCount = Math.max(1, ...bins);
+      ctx.strokeStyle = 'rgba(15,23,42,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + plotH);
+      ctx.lineTo(padL + plotW, padT + plotH);
+      ctx.stroke();
+      const barW = plotW / bins.length;
+      for (let i = 0; i < bins.length; i++) {
+        const bh = (bins[i] / maxCount) * plotH;
+        const t = i / Math.max(1, bins.length - 1);
+        ctx.fillStyle = rgb01ToCss(interpolatePalette(expressionPalette, t));
+        ctx.fillRect(padL + i * barW, padT + plotH - bh, Math.max(1, barW - 1), bh);
+      }
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.fillText(geneScaleMin.toFixed(geneScaleMin >= 10 ? 0 : 2), padL, h - 6);
+      ctx.textAlign = 'right';
+      ctx.fillText(geneMax.toFixed(geneMax >= 10 ? 0 : 2), padL + plotW, h - 6);
+      ctx.textAlign = 'left';
+      const mean = visible ? visibleSum / visible : 0;
+      meta.textContent = `${currentGeneName || 'Gene'} | scale=${geneScaleMin.toFixed(3)}-${geneMax.toFixed(3)} | visible=${visible.toLocaleString()} | nonzero=${nonzero.toLocaleString()} | mean=${mean.toFixed(3)} | max=${visibleMax.toFixed(3)}`;
+    }
+
+    function toggleCluster(idx, item) {
+      if (hiddenClusters.has(idx)) {
+        hiddenClusters.delete(idx);
+        item.classList.remove('dimmed');
+      } else {
+        hiddenClusters.add(idx);
+        item.classList.add('dimmed');
+      }
+      updateMesh(false);
+    }
+
+    function showOnlyCluster(idx) {
+      const clusterIndexes = config.clusters.map((_, i) => i);
+      const hiddenExceptIdx = clusterIndexes.filter(i => i !== idx);
+      const isOnlyThisVisible = !hiddenClusters.has(idx) &&
+        hiddenClusters.size === hiddenExceptIdx.length &&
+        hiddenExceptIdx.every(i => hiddenClusters.has(i));
+      hiddenClusters = isOnlyThisVisible ? new Set() : new Set(hiddenExceptIdx);
+      renderLegend();
+      updateMesh(false);
+    }
+    function setColorMode(mode) {
+      colorMode = mode;
+      document.getElementById('gene-scale').style.display = mode === 'gene' ? 'block' : 'none';
+      document.getElementById('gene-scale').style.background = paletteCss(expressionPalette);
+      document.getElementById('expression-palette-select').style.display = mode === 'gene' ? 'block' : 'none';
+      document.getElementById('gene-max-slider').disabled = mode !== 'gene';
+      layoutRightPanels();
+      updateMesh(false);
+    }
+
+    async function applyGeneExpression() {
+      const search = document.getElementById('gene-search');
+      const select = document.getElementById('gene-select');
+      const gene = (select?.value || search?.value || config?.genes?.[0] || 'Gene0000').trim();
+      if (search) search.value = gene;
+      const geneHint = document.getElementById('gene-hint');
+      geneHint.dataset.custom = '1';
+      if (config.expression && expressionManifest) {
+        if (!expressionManifest.genes.includes(gene)) {
+          geneHint.textContent = `Gene ${gene} not found. Example: ${expressionManifest.genes.slice(0, 5).join(', ')}`;
+          return;
+        }
+        const ok = await loadSparseGeneExpression(gene);
+        if (!ok) return;
+        geneHint.textContent = `${i18n[currentLang].showingGene(gene)} ${geneHint.dataset.scaleInfo || ''}`;
+      } else {
+        geneHint.textContent = hasGeneColumn
+          ? i18n[currentLang].showingGene(gene)
+          : i18n[currentLang].simulatedGene(gene);
+      }
+      setColorMode('gene');
+    }
+
+    function estimateSliceTolerance() {
+      if (knownSlices.length < 2) return 5;
+      let minGap = Infinity;
+      for (let i = 1; i < knownSlices.length; i++) minGap = Math.min(minGap, Math.abs(knownSlices[i] - knownSlices[i - 1]));
+      return Math.max(minGap * 0.45, 0.001);
+    }
+
+    function calculateSpatial3DScale() {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      rawData.forEach(buf => {
+        const n = Math.floor(buf.length / floatsPerCell);
+        const stride = Math.max(1, Math.ceil(n / 5000));
+        for (let i = 0; i < n; i += stride) {
+          const o = i * floatsPerCell;
+          const x = buf[o], y = buf[o + 1], z = buf[o + 2];
+          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+          minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        }
+      });
+      if (!Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+        rawZCenter = 0;
+        rawZRange = 1;
+        zVisualScale = 1;
+        zVisualScaleMax = 1000;
+        setupZSpacingControl();
+        return;
+      }
+      rawZCenter = (minZ + maxZ) / 2;
+      rawZRange = Math.max(maxZ - minZ, 1);
+      const xyRange = Math.max(maxX - minX, maxY - minY, 1);
+      const desiredDepth = clampNumber(xyRange * 0.38, rawZRange, xyRange * 0.85);
+      const configuredScale = Number(config.z_visual_scale ?? config.z_scale ?? config.slice_spacing_scale);
+      zVisualScale = Number.isFinite(configuredScale) && configuredScale > 0
+        ? configuredScale
+        : clampNumber(desiredDepth / rawZRange, 1, 200);
+      zVisualScaleMax = Math.max(1000, Math.ceil(zVisualScale * 2));
+      zVisualScaleAuto = !(Number.isFinite(configuredScale) && configuredScale > 0);
+      setupZSpacingControl();
+    }
+
+    function visualZ(z) {
+      return rawZCenter + (Number(z) - rawZCenter) * zVisualScale;
+    }
+
+    function applySpatialZScale(resetCameraAfterUpdate = false) {
+      if (!points?.geometry?.attributes?.position || currentView !== 'spatial3d') return;
+      const pos = points.geometry.attributes.position;
+      const useSlice = activeSlice !== 'all';
+      const targetZ = useSlice ? Number(activeSlice) : null;
+      const tolerance = estimateSliceTolerance();
+      let cursor = 0;
+      rawData.forEach(buf => {
+        const n = Math.floor(buf.length / floatsPerCell);
+        for (let i = 0; i < n && cursor < pos.count; i++) {
+          const o = i * floatsPerCell;
+          const z = buf[o + 2];
+          const rawCluster = buf[o + clusterFieldColumn];
+          const cidx = Math.max(0, Math.min(config.clusters.length - 1, Math.round(rawCluster || 0)));
+          if (hiddenClusters.has(cidx)) continue;
+          if (targetZ !== null && Math.abs(z - targetZ) > tolerance) continue;
+          pos.setZ(cursor, visualZ(z));
+          cursor++;
+        }
+      });
+      pos.needsUpdate = true;
+      points.geometry.computeBoundingBox();
+      points.geometry.computeBoundingSphere();
+      if (resetCameraAfterUpdate) resetCamera();
+    }
+
+    function clampNumber(value, min, max) {
+      value = Number(value);
+      if (!Number.isFinite(value)) return min;
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function onResize() {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      if (controls && controls.handleResize) controls.handleResize();
+      layoutRightPanels();
+    }
+
+    function renderHudAxes() {
+      if (!hudScene || !hudCamera || !hudAxes || !hudRenderer || currentView !== 'spatial3d') return;
+      const hud = document.getElementById('hud-label');
+      if (!hud || hud.style.display === 'none') return;
+      const rect = hud.getBoundingClientRect();
+      const size = Math.min(rect.width, rect.height);
+      hudRenderer.setSize(size, size, false);
+      hudRenderer.domElement.style.left = `${rect.left + (rect.width - size) / 2}px`;
+      hudRenderer.domElement.style.top = `${rect.top + (rect.height - size) / 2}px`;
+      hudRenderer.domElement.style.width = `${size}px`;
+      hudRenderer.domElement.style.height = `${size}px`;
+      hudRenderer.domElement.style.display = 'block';
+      hudAxes.quaternion.copy(camera.quaternion).invert();
+      hudRenderer.clear();
+      hudRenderer.render(hudScene, hudCamera);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (controls) controls.update();
+      if (renderer && scene && camera) {
+        renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+        renderer.setScissorTest(false);
+        renderer.render(scene, camera);
+        renderHudAxes();
+      }
+    }
+
+    function nearlyEqual(a, b) { return Math.abs(Number(a) - Number(b)) < 1e-6; }
+    function formatNum(v) { return Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2).replace(/\.00$/, ''); }
+
+    init();
+  </script>
+</body>
+</html>
